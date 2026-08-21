@@ -1,0 +1,4574 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>맘푸드 업무시스템</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+    margin: 0; padding: 0;
+    background: #f2f3f5;
+    color: #222;
+    overflow-x: hidden; /* 페이지 전체가 아니라 표 영역 안에서만 좌우 스크롤되도록 */
+    height: 100%;
+  }
+  body {
+    display: flex;
+    flex-direction: column;
+  }
+  #toolbar {
+    display: flex; align-items: center; gap: 8px;
+    background: #2b3a55; padding: 10px 14px;
+    flex-wrap: wrap;
+  }
+  #toolbar button {
+    background: #3f5273; color: #fff; border: none;
+    padding: 8px 14px; border-radius: 4px; cursor: pointer;
+    font-size: 13px;
+  }
+  #toolbar button:hover { background: #4c6389; }
+  #globalBar {
+    display:flex; align-items:center; gap:10px;
+    background:#1c2536; padding:6px 14px; flex:0 0 auto; position:relative;
+  }
+  .appTabBtn {
+    background:transparent; color:#cfd6e4; border:none; border-radius:4px;
+    padding:6px 14px; font-size:13px; font-weight:bold; cursor:pointer;
+  }
+  .appTabBtn:hover { background:#2b3a55; }
+  .appTabBtn.active { background:#3f5273; color:#fff; }
+  .appScreen { display:none; flex-direction:column; flex:1; min-height:0; }
+  .appScreen.active { display:flex; }
+  #prodToolbar {
+    display:flex; align-items:center; gap:8px;
+    background:#2b3a55; padding:10px 14px; flex:0 0 auto;
+  }
+  #prodToolbar button {
+    background:#3f5273; color:#fff; border:none; padding:8px 14px; border-radius:4px;
+    cursor:pointer; font-size:13px;
+  }
+  #prodToolbar button:hover { background:#4c6389; }
+  #prodTabs { display:flex; align-items:center; background:#dfe3e8; border-bottom:2px solid #b9c0cb; flex:0 0 auto; }
+  .prodTabBtn { padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:13px; font-weight:bold; color:#555; }
+  .prodTabBtn.active { background:#fff; color:#2b3a55; border-bottom:2px solid #2b3a55; margin-bottom:-2px; }
+  #prodFileFilterArea { margin-left:14px; font-size:12px; font-weight:bold; color:#333; display:flex; align-items:center; gap:6px; }
+  #prodFileFilterArea select { padding:4px 8px; border-radius:4px; border:1px solid #b9c0cb; background:#fff; font-size:12px; font-weight:bold; color:#333; max-width:220px; }
+  .prodSheet { display:none; flex-direction:column; flex:1; min-height:0; }
+  .prodSheet.active { display:flex; }
+  #prodContent { display:flex; flex:1; min-height:0; gap:14px; padding:14px; }
+  .statusBadge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; }
+  .statusBadge.ok { background:#e3f3e6; color:#2a7a3b; }
+  .statusBadge.fail { background:#ffdede; color:#a11; }
+  .statusBadge.fixed { background:#dce8fb; color:#1c4f9c; }
+  .overrideDelBtn { background:#e05353; color:#fff; border:none; border-radius:4px; padding:3px 8px; cursor:pointer; font-size:11px; }
+  #prodRawArea, #prodSummaryArea {
+    flex:1; min-height:0; display:flex; flex-direction:column;
+    background:#fff; border-radius:6px; padding:12px; overflow:auto;
+  }
+  #prodRunSummary {
+    display:flex; flex-direction:column; gap:8px; margin-top:6px;
+  }
+  .prodRunLine {
+    display:flex; justify-content:space-between; align-items:center;
+    background:#fff3cd; border-radius:6px; padding:10px 14px;
+    font-weight:bold; color:#2b3a55; font-size:14px;
+  }
+  #prodUploadLog {
+    flex:0 0 auto; margin-top:10px; padding-top:8px; border-top:1px dashed #ddd;
+  }
+  #prodUploadLog .sectionTitle { margin-top:0; padding-top:0; border-top:none; font-size:12px; }
+  #invoiceUploadLogArea {
+    flex:0 0 auto; margin-top:10px; padding-top:8px; border-top:1px dashed #ddd;
+  }
+  #invoiceUploadLogArea .sectionTitle { margin-top:0; padding-top:0; border-top:none; font-size:12px; }
+  .uploadLogHeader { display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
+  .uploadLogToggleBtn { font-size:11px; font-weight:normal; color:#888; }
+  .uploadLogListInner { max-height:64px; overflow-y:auto; }
+  .uploadLogListInner.hidden { display:none; }
+  .uploadLogLine { font-size:11px; color:#555; padding:3px 0; }
+  .uploadLogLine .failCount { color:#d0341c; font-weight:bold; }
+  #prodRawTbody tr.failRow td { background:#ffdede; color:#a11; }
+  #prodRawTbody tr.updatedRow td, #prodLineTbody tr.updatedRow td, #prodStatusTbody tr.updatedRow td { background:#dbf5df; color:#1e7a35; }
+  .prodUpdateRow { padding:10px 0; border-bottom:1px solid #eee; }
+  .prodUpdateRow .origName { font-size:12px; color:#a11; font-weight:bold; margin-bottom:6px; word-break:break-all; }
+  .prodUpdateRow .fieldsRow { display:flex; gap:10px; }
+  .prodUpdateRow .fieldsRow > div { flex:1; }
+  .prodUpdateRow label { display:block; font-size:11px; color:#777; margin-bottom:3px; }
+  .prodUpdateRow input { width:100%; padding:6px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; }
+  .uploadLogLine .okCount { color:#2a7a3b; font-weight:bold; }
+  #profileArea { color: #fff; font-size: 13px; display:flex; align-items:center; gap:6px;}
+  #profileArea select { padding: 6px; border-radius: 4px; border: none; min-width: 160px;}
+  #tabs { display:flex; background:#dfe3e8; border-bottom: 2px solid #b9c0cb; }
+  .tabBtn { padding: 8px 20px; border:none; background:transparent; cursor:pointer; font-size:13px; font-weight:bold; color:#555;}
+  .tabBtn.active { background:#fff; color:#2b3a55; border-bottom:2px solid #2b3a55; margin-bottom:-2px; }
+  #invoiceUploadSummary { align-self:center; margin-left:14px; padding:4px 10px; font-size:12px; font-weight:bold; color:#333; cursor:pointer; user-select:none; border-radius:4px; }
+  #invoiceUploadSummary:hover { background:#eef1f5; }
+  #invoiceUploadSummary .ouSuccess { display:inline-block; padding:1px 8px; border-radius:10px; background:#e3f5e6; color:#1e7a35; font-weight:bold; }
+  #invoiceUploadSummary .ouFail { display:inline-block; padding:1px 8px; border-radius:10px; background:#fbe2e0; color:#c0271a; font-weight:bold; }
+
+  /* ===== 입고일지 ===== */
+  #inboundToolbar {
+    display:flex; align-items:center; gap:8px;
+    background:#2b3a55; padding:10px 14px; flex:0 0 auto;
+  }
+  #inboundToolbar button {
+    background:#3f5273; color:#fff; border:none; padding:8px 14px; border-radius:4px;
+    cursor:pointer; font-size:13px;
+  }
+  #inboundToolbar button:hover { background:#4c6389; }
+  #inboundUploadSummary { margin-left:14px; padding:4px 10px; font-size:12px; font-weight:bold; color:#fff; cursor:pointer; user-select:none; border-radius:4px; }
+  #inboundUploadSummary:hover { background:rgba(255,255,255,0.12); }
+  #inboundUploadSummary .ouSuccess { display:inline-block; padding:1px 8px; border-radius:10px; background:#e3f5e6; color:#1e7a35; font-weight:bold; }
+  #inboundUploadSummary .ouFail { display:inline-block; padding:1px 8px; border-radius:10px; background:#fbe2e0; color:#c0271a; font-weight:bold; }
+  #inboundBody { display:flex; flex:1; min-height:0; }
+  #inboundCalendarArea { flex:1; min-height:0; display:flex; flex-direction:column; padding:14px; }
+  #inboundCalHeader { display:flex; align-items:center; gap:10px; flex:0 0 auto; margin-bottom:10px; }
+  #inboundCalHeader .btnGhost { padding:6px 12px; border-radius:4px; border:1px solid #ccc; background:#fff; cursor:pointer; }
+  #inboundCalTitleWrap { position:relative; display:inline-block; }
+  #inboundCalTitle { font-weight:bold; font-size:16px; color:#2b3a55; min-width:110px; text-align:center; cursor:pointer; border-radius:4px; padding:2px 6px; }
+  #inboundCalTitleWrap:hover #inboundCalTitle { background:#eef1f5; }
+  #inboundMonthPicker {
+    position:absolute; top:0; left:0; width:100%; height:100%;
+    opacity:0; cursor:pointer; border:none; padding:0; margin:0;
+  }
+  /* 표 대신 CSS Grid로 구성 - 주(week) 행들이 남는 세로 공간을 균등하게 채우도록(1fr) 해서
+     달이 몇 주로 구성되든 달력이 영역 하단까지 꽉 차고 밑에 빈 여백이 남지 않게 한다 */
+  #inboundCalGridWrap { flex:1; min-height:0; overflow:hidden; }
+  #inboundCalGrid {
+    display:grid; grid-template-columns:repeat(7, 1fr);
+    height:100%; gap:1px; background:#d3d7dc; border:1px solid #d3d7dc;
+  }
+  #inboundCalBody { display:contents; }
+  .calHeadCell { background:#3f5273; color:#fff; padding:6px; text-align:center; font-weight:bold; font-size:13px; }
+  .calHeadCell.sun { color:#ffb3b3; }
+  .calHeadCell.sat { color:#b3d4ff; }
+  .calDayCell { background:#fff; padding:4px; cursor:pointer; overflow:hidden; min-width:0; min-height:0; display:flex; flex-direction:column; }
+  .calDayCell:hover { background:#f5f7fb; }
+  .calDayCell.otherMonth { background:#eef0f3; }
+  .calDayCell.selectedDay { background:#e6ecf9; outline:2px solid #3f5273; outline-offset:-2px; }
+  .calDayCell.today .dayNum { color:#fff; background:#3f5273; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; }
+  .dayNum { font-size:12px; font-weight:bold; color:#333; }
+  .dayNum.monthMark { color:#8a5a1f; background:#fdf1de; border-radius:4px; padding:1px 5px; display:inline-block; }
+  .calDayCell.otherMonth .dayNum { color:#b7bcc4; }
+  .calDayCell.otherMonth .dayNum.monthMark { color:#a98a5e; background:#f1ece2; }
+  .calDayCell.otherMonth .dayBadge { background:#e6e8eb; color:#8a8f96; }
+  .calDayCell.otherMonth .dayItemPreview { color:#aeb2b8; }
+  .dayBadge { display:inline-block; margin-top:4px; padding:1px 6px; border-radius:8px; background:#e3f5e6; color:#1e7a35; font-size:10px; font-weight:bold; }
+  .dayItemPreview { margin-top:3px; font-size:10px; color:#666; line-height:1.4; word-break:break-all; }
+  #inboundDetailArea { width:320px; flex:0 0 auto; border-left:1px solid #ddd; padding:14px; overflow:auto; background:#fff; }
+  .inboundDetailRow { padding:8px 0; border-bottom:1px solid #eee; font-size:12px; }
+  .inboundDetailRow .idrVendor { font-weight:bold; color:#2b3a55; }
+  .inboundDetailRow .idrItem { margin-top:2px; }
+  .inboundDetailRow .idrMeta { margin-top:2px; color:#777; }
+  .idrManualTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#efe6f7; color:#6b4c9a; font-size:10px; font-weight:bold; vertical-align:middle; }
+
+  /* 세금계산서 직접입력 모달 안의 소형 날짜 선택용 달력 */
+  #manualCalHeader { display:flex; align-items:center; gap:8px; margin-top:10px; }
+  #manualCalTitle { flex:1; text-align:center; font-weight:bold; color:#2b3a55; font-size:14px; }
+  #manualCalGrid { display:grid; grid-template-columns:repeat(7, 1fr); gap:1px; background:#d3d7dc; border:1px solid #d3d7dc; margin-top:8px; }
+  .miniHeadCell { background:#3f5273; color:#fff; padding:4px; text-align:center; font-size:11px; font-weight:bold; }
+  .miniDayCell { background:#fff; padding:6px 2px; text-align:center; font-size:12px; color:#333; cursor:pointer; }
+  .miniDayCell:hover { background:#f5f7fb; }
+  .miniDayCell.otherMonth { color:#c3c7cd; background:#fafafa; }
+  .miniDayCell.today { font-weight:bold; color:#3f5273; }
+  .miniDayCell.selectedDay { background:#3f5273; color:#fff; border-radius:4px; }
+  #inboundCalSummary { color:#666; }
+
+  .sheet { display:none; padding: 12px; min-height:0; }
+  .sheet.active { display:flex; flex-direction:column; flex:1; min-height:0; }
+  .tableScroll { flex:1; min-height:0; overflow:auto; }
+  #summaryArea:not(.hidden) { flex:1; min-height:0; overflow-y:auto; }
+  table { border-collapse: collapse; background:#fff; font-size:12px; width: max-content; min-width: 100%; }
+  th, td { border: 1px solid #d3d7dc; padding: 5px 8px; text-align:center; white-space: nowrap; }
+  #colHeaderRow th { background:#e8eaee; color:#666; font-weight:normal; }
+  #fieldHeaderRow th { background:#3f5273; color:#fff; position: sticky; top:0; }
+  #fieldHeaderRow th { white-space:nowrap; }
+  /* 필터가 적용된 열은 헤더 두 줄(문자행/이름행) 전체를 눈에 띄게 강조 표시 */
+  #colHeaderRow th.filteredColHeader { background:#ffb703; color:#3f2c00; font-weight:bold; }
+  #fieldHeaderRow th.filteredColHeader { background:#ffd166; color:#2b3a55; }
+  .colFilterIcon { display:inline-block; margin-left:5px; cursor:pointer; font-size:10px; color:#aab4c8; user-select:none; }
+  .colFilterIcon:hover { color:#fff; }
+  .colFilterIcon.activeFilter {
+    color:#2b3a55; font-weight:bold; font-size:11px;
+    background:#fff; border-radius:50%; width:15px; height:15px;
+    display:inline-flex; align-items:center; justify-content:center;
+    box-shadow: 0 0 0 1px #2b3a55;
+  }
+  #rowInsertMenu {
+    position:fixed; z-index:70; background:#fff; border:1px solid #ccc; border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.25); padding:4px 0; min-width:200px;
+  }
+  #rowInsertMenuItem { padding:8px 14px; font-size:13px; cursor:pointer; color:#2b3a55; }
+  #rowInsertMenuItem:hover { background:#eef1f5; }
+  #colFilterPopup, #prodColFilterPopup {
+    position:fixed; z-index:60; background:#fff; border:1px solid #ccc; border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.25); padding:10px; width:220px;
+  }
+  #colFilterPopup input[type=text], #prodColFilterPopup input[type=text] { width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:12px; margin-bottom:8px; }
+  #colFilterColorSection { padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #eee; }
+  .colFilterBtnRow { display:flex; gap:6px; margin-bottom:6px; }
+  .colFilterBtnRow button { flex:1; padding:4px; font-size:11px; border-radius:4px; border:1px solid #ccc; background:#e8eaee; cursor:pointer; }
+  #colFilterList, #prodColFilterList { max-height:220px; overflow-y:auto; border-top:1px solid #eee; padding-top:6px; }
+  #colFilterList label, #prodColFilterList label { display:flex; align-items:center; gap:6px; padding:3px 2px; font-size:12px; cursor:pointer; border-radius:3px; }
+  #colFilterList label:hover, #prodColFilterList label:hover { background:#f5f7fb; }
+  #colFilterPopup .modalBtns, #prodColFilterPopup .modalBtns { margin-top:10px; padding:0; }
+  #colFilterPopup .modalBtns button, #prodColFilterPopup .modalBtns button { padding:5px 12px; font-size:12px; border-radius:4px; border:none; cursor:pointer; }
+  #prodRawTable th { position:relative; }
+  /* 발주내역 표 헤더는 배경이 흰색이라 필터 아이콘 기본 색상 대비를 mainTable과 다르게 지정 */
+  #prodRawTable .colFilterIcon { color:#8892a0; }
+  #prodRawTable .colFilterIcon:hover { color:#2b3a55; }
+  #prodRawTable th.filteredColHeader { background:#ffd166; color:#2b3a55; }
+  #mainTbody td { min-width: 90px; }
+  #mainTbody td.editableCell { cursor: cell; user-select: none; }
+  #mainTbody td.editableCell:hover { background: #fbfcff; }
+  #mainTbody td.editableCell[contenteditable="true"] { cursor: text; user-select: text; background: rgba(91,127,214,0.18); outline: 2px solid #5b7fd6; outline-offset: -2px; }
+  #mainTbody td.cellSelected { background: rgba(91,127,214,0.10); }
+  /* 생산량계산기(발주내역) 표: 정산내역과 동일한 방식의 드래그 선택 표시 */
+  #prodRawTbody td.prodSelectableCell { cursor: cell; user-select: none; }
+  #prodRawTbody td.prodSelectableCell:hover { background: #fbfcff; }
+  #prodRawTbody td.prodCellSelected { background: rgba(91,127,214,0.10); }
+  /* 복사/잘라내기 범위 표시: 선택 영역의 바깥쪽 테두리를 엑셀처럼 움직이는 점선(마칭 앤츠)으로 표시 */
+  /* 실제 table border(border-collapse)로 그리면 옆 셀의 자체 테두리와 충돌해서 행마다 다르게 보이므로,
+     테두리를 셀 위에 겹치는 장식용 오버레이(::before/::after)로 그려서 표 테두리 규칙과 아예 무관하게 만든다.
+     opacity 애니메이션은 셀 텍스트까지 깜빡이게 만들므로 사용하지 않고, background-position만 이동시켜
+     점선 패턴 자체가 흘러가는 것처럼 보이게 한다. */
+  #mainTbody td.clipboardEdgeTop, #mainTbody td.clipboardEdgeBottom,
+  #mainTbody td.clipboardEdgeLeft, #mainTbody td.clipboardEdgeRight { position: relative; }
+  /* 시계방향(위→오른쪽, 오른쪽→아래, 아래→왼쪽, 왼쪽→위)으로 흐르도록 각 변마다 방향을 다르게 지정 */
+  @keyframes clipMarchRight  { to { background-position: 8px 0; } }
+  @keyframes clipMarchLeft   { to { background-position: -8px 0; } }
+  @keyframes clipMarchDown   { to { background-position: 0 8px; } }
+  @keyframes clipMarchUp     { to { background-position: 0 -8px; } }
+  @keyframes clipMarchTB2    { to { background-position: 8px 0, -8px 100%; } }
+  @keyframes clipMarchLR2    { to { background-position: 0 -8px, 100% 8px; } }
+  /* 상 변: ::before, 가로 점선이 오른쪽으로 흐름 */
+  #mainTbody td.clipboardEdgeTop:not(.clipboardEdgeBottom)::before {
+    content:''; position:absolute; left:-1px; right:-1px; top:-1px; height:2px; pointer-events:none;
+    background-image: linear-gradient(90deg, #1e7a35 50%, transparent 50%);
+    background-size: 8px 2px; background-repeat: repeat-x; background-position: 0 0;
+    animation: clipMarchRight 0.5s linear infinite;
+  }
+  /* 하 변: ::before, 가로 점선이 왼쪽으로 흐름 */
+  #mainTbody td.clipboardEdgeBottom:not(.clipboardEdgeTop)::before {
+    content:''; position:absolute; left:-1px; right:-1px; bottom:-1px; height:2px; pointer-events:none;
+    background-image: linear-gradient(90deg, #1e7a35 50%, transparent 50%);
+    background-size: 8px 2px; background-repeat: repeat-x; background-position: 0 0;
+    animation: clipMarchLeft 0.5s linear infinite;
+  }
+  #mainTbody td.clipboardEdgeTop.clipboardEdgeBottom::before {
+    content:''; position:absolute; left:-1px; right:-1px; top:-1px; bottom:-1px; pointer-events:none;
+    background-image:
+      linear-gradient(90deg, #1e7a35 50%, transparent 50%),
+      linear-gradient(90deg, #1e7a35 50%, transparent 50%);
+    background-size: 8px 2px, 8px 2px;
+    background-repeat: repeat-x, repeat-x;
+    background-position: 0 0, 0 100%;
+    animation: clipMarchTB2 0.5s linear infinite;
+  }
+  /* 좌 변: ::after, 세로 점선이 위쪽으로 흐름 */
+  #mainTbody td.clipboardEdgeLeft:not(.clipboardEdgeRight)::after {
+    content:''; position:absolute; top:-1px; bottom:-1px; left:-1px; width:2px; pointer-events:none;
+    background-image: linear-gradient(0deg, #1e7a35 50%, transparent 50%);
+    background-size: 2px 8px; background-repeat: repeat-y; background-position: 0 0;
+    animation: clipMarchUp 0.5s linear infinite;
+  }
+  /* 우 변: ::after, 세로 점선이 아래쪽으로 흐름 */
+  #mainTbody td.clipboardEdgeRight:not(.clipboardEdgeLeft)::after {
+    content:''; position:absolute; top:-1px; bottom:-1px; right:-1px; width:2px; pointer-events:none;
+    background-image: linear-gradient(0deg, #1e7a35 50%, transparent 50%);
+    background-size: 2px 8px; background-repeat: repeat-y; background-position: 0 0;
+    animation: clipMarchDown 0.5s linear infinite;
+  }
+  #mainTbody td.clipboardEdgeLeft.clipboardEdgeRight::after {
+    content:''; position:absolute; top:-1px; bottom:-1px; left:-1px; right:-1px; pointer-events:none;
+    background-image:
+      linear-gradient(0deg, #1e7a35 50%, transparent 50%),
+      linear-gradient(0deg, #1e7a35 50%, transparent 50%);
+    background-size: 2px 8px, 2px 8px;
+    background-repeat: repeat-y, repeat-y;
+    background-position: 0 0, 100% 0;
+    animation: clipMarchLR2 0.5s linear infinite;
+  }
+  #mainTbody td.numCol { background:#f7f8fa; color:#888; }
+  tr.dupRow td.invoiceCell { color:#d0341c; font-weight:bold; background:#ffecec; }
+  #mainTbody td.invoiceFailCell { background:#f5b3aa; color:#7a1207; font-weight:bold; }
+  #mainTbody td.productFailCell { background:#f5b3aa; color:#7a1207; font-weight:bold; }
+  #mainTbody td.priceZeroCell { background:#f5b3aa; color:#7a1207; font-weight:bold; }
+  #priceTable input { width: 90px; }
+  .rowIdx { width: 36px; color:#999; background:#f7f8fa; }
+  #mainTbody td.rowIdx { cursor:pointer; user-select:none; }
+  .overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index: 50; }
+  .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    background:#fff; border-radius:8px; padding: 20px 24px; z-index: 51;
+    width: 520px; max-height: 82vh; overflow:auto; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
+  .modal h2 { margin-top:0; font-size:16px; color:#2b3a55; }
+  .modal label { display:block; font-size:12px; color:#555; margin-top:10px; margin-bottom:3px; }
+  .modal input[type=text], .modal input[type=number], .modal select {
+    width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:13px;
+  }
+  .row2 { display:flex; gap:10px; }
+  .row2 > div { flex:1; }
+  .modalBtns { margin-top:18px; display:flex; justify-content:flex-end; gap:8px; }
+  .modalBtns button { padding:7px 16px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+  .btnPrimary { background:#2b3a55; color:#fff; }
+  .btnGhost { background:#e8eaee; color:#333; }
+  /* 제거됨 탭: 복원(네이비)/영구삭제(빨강) 버튼 */
+  .btnRestore { background:#3f5273; color:#fff; border:none; border-radius:4px; padding:5px 12px; font-size:12px; cursor:pointer; }
+  .btnRestore:hover { background:#4c6389; }
+  .btnPermDelete { background:#8a2c2c; color:#fff; border:none; border-radius:4px; padding:5px 12px; font-size:12px; cursor:pointer; }
+  .btnPermDelete:hover { background:#a13a3a; }
+  .hidden { display:none !important; }
+  .priceRow { display:flex; flex-direction:column; gap:4px; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;}
+  .priceRow span { font-weight:bold; color:#333; }
+  .priceRow input { width:100%; padding:6px; border:1px solid #ccd2da; border-radius:4px; }
+  .csResultRow { padding:8px; border:1px solid #ddd; border-radius:4px; margin-top:6px; cursor:pointer; font-size:12px; text-align:left; }
+  .csResultRow.selected { background:#e5edff; border-color:#5b7fd6; }
+  .invoiceFailRow { padding:8px; border:1px solid #f0b3ab; background:#fdf1ef; border-radius:4px; margin-top:6px; cursor:pointer; font-size:12px; text-align:left; }
+  .invoiceFailRow:hover { background:#fbe2de; }
+  .invoiceFailRow .ofrMain { font-weight:bold; color:#7a1207; }
+  .invoiceFailRow .ofrMeta { margin-top:2px; color:#777; font-size:11px; }
+  #invoiceUploadSummary .ouFail { cursor:pointer; }
+  #invoiceUploadSummary .ouFail:hover { text-decoration:underline; }
+  .smallNote { font-size:11px; color:#888; margin-top:2px; }
+  .sectionTitle { margin-top:16px; font-weight:bold; font-size:13px; color:#2b3a55; border-top:1px dashed #ccc; padding-top:10px;}
+  #priceTbody button, .delBtn { background:#e05353; color:#fff; border:none; border-radius:4px; padding:3px 8px; cursor:pointer; font-size:11px;}
+  #emptyState { padding: 40px; text-align:center; color:#888; font-size:13px; }
+  #lockScreen {
+    position: fixed; inset: 0; z-index: 9999;
+    background: #1c2536; display: flex; align-items: center; justify-content: center;
+  }
+  #lockBox {
+    background: #fff; border-radius: 10px; padding: 32px 36px; width: 320px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35); text-align: center;
+  }
+  #lockBox h2 { margin: 0 0 6px; color: #2b3a55; font-size: 18px; }
+  #lockBox p { margin: 0 0 18px; color: #777; font-size: 12px; }
+  #lockPassword {
+    width: 100%; padding: 10px; border: 1px solid #ccd2da; border-radius: 6px;
+    font-size: 16px; text-align: center; letter-spacing: 4px;
+  }
+  #lockError { color: #d0341c; font-size: 12px; margin-top: 10px; min-height: 16px; }
+  #lockSubmit {
+    margin-top: 14px; width: 100%; padding: 10px; border: none; border-radius: 6px;
+    background: #2b3a55; color: #fff; font-size: 14px; cursor: pointer;
+  }
+  #lockSubmit:hover { background: #3f5273; }
+</style>
+</head>
+<body>
+
+<div id="lockScreen" class="hidden">
+  <div id="lockBox">
+    <h2>맘푸드 업무시스템</h2>
+    <p>&nbsp;</p>
+    <input type="password" id="lockPassword" inputmode="numeric" autocomplete="off" placeholder="비밀번호">
+    <button id="lockSubmit">확인</button>
+    <div id="lockError"></div>
+  </div>
+</div>
+
+<div id="globalBar">
+  <button class="appTabBtn active" data-app="settlement">자동정산기</button>
+  <button class="appTabBtn" data-app="production">생산량계산기</button>
+  <button class="appTabBtn" data-app="inbound">입고일지</button>
+</div>
+
+<div id="appSettlement" class="appScreen active">
+<div id="toolbar">
+  <button id="btnNewProfile">① 프로필생성</button>
+  <button id="btnUploadInvoice">② 송장업로드</button>
+  <button id="btnPrice">③ 단가입력</button>
+  <button id="btnSettle">④ 정산</button>
+  <button id="btnCS">⑤ CS</button>
+  <button id="btnEventPrice" style="background:#b8860b;">행사가</button>
+  <button id="btnExport">⇩ 엑셀내보내기</button>
+  <button id="btnResetUpload">업로드내역초기화</button>
+  <button id="btnEditProfile" style="background:#3a6b4c; margin-left:auto;">프로필수정</button>
+  <button id="btnDeleteProfile" style="background:#8a2c2c;">프로필삭제</button>
+  <div id="profileArea">
+    프로필:
+    <select id="profileSelect"></select>
+  </div>
+</div>
+
+<div id="tabs">
+  <button class="tabBtn active" data-tab="sheet1">정산내역</button>
+  <button class="tabBtn" data-tab="sheet2">단가</button>
+  <button class="tabBtn" data-tab="sheet3">정산요약</button>
+  <div id="invoiceUploadSummary" class="hidden" title="더블클릭하면 지금까지의 업로드 내역을 볼 수 있습니다."></div>
+</div>
+
+<div id="sheet1" class="sheet active">
+  <div id="emptyState" class="hidden">먼저 [프로필생성]으로 거래처 프로필을 만들어 주세요.</div>
+  <div class="tableScroll">
+    <table id="mainTable">
+      <thead>
+        <tr id="colHeaderRow"></tr>
+        <tr id="fieldHeaderRow"></tr>
+      </thead>
+      <tbody id="mainTbody"></tbody>
+    </table>
+  </div>
+  <div id="invoiceUploadLogArea" class="hidden"></div>
+</div>
+
+<div id="sheet2" class="sheet">
+  <div class="tableScroll">
+    <table id="priceTable">
+      <thead><tr><th style="width:260px;">상품명</th><th style="width:140px;">단가</th><th style="width:60px;"></th></tr></thead>
+      <tbody id="priceTbody"></tbody>
+    </table>
+  </div>
+  <div style="margin-top:10px; display:flex; gap:8px; flex:0 0 auto;">
+    <button id="btnAddPriceRow" class="btnGhost" style="padding:6px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;">+ 상품 추가</button>
+    <button id="btnClearPrices" style="padding:6px 12px;border-radius:4px;border:none;background:#8a2c2c;color:#fff;cursor:pointer;">단가 전체 삭제</button>
+  </div>
+</div>
+
+<div id="sheet3" class="sheet">
+  <div id="summaryEmptyState" class="hidden smallNote" style="padding:20px;">표시할 정산 요약 내역이 없습니다.</div>
+  <div id="summaryArea" class="hidden">
+    <div class="sectionTitle" style="margin-top:0;">정산 요약</div>
+    <table id="summaryProductTable">
+      <thead><tr><th>상품명</th><th>갯수 합계</th><th>상품금액 합계</th></tr></thead>
+      <tbody id="summaryProductTbody"></tbody>
+    </table>
+
+    <table id="summaryTotalsTable" style="margin-top:14px;">
+      <thead><tr><th>총 합포장 금액</th><th>총 환불금액</th><th>총 정산금액</th></tr></thead>
+      <tbody>
+        <tr>
+          <td id="sumCombinedPack" style="font-weight:bold; color:#2b3a55;"></td>
+          <td id="sumRefund" style="font-weight:bold; color:#2b3a55;"></td>
+          <td id="sumSettlement" style="font-weight:bold; color:#2b3a55;"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+</div><!-- /#appSettlement -->
+
+<div id="appProduction" class="appScreen">
+  <div id="prodToolbar">
+    <button id="btnProdUpload">발주서업로드</button>
+    <button id="btnProdUpdate">발주서업데이트</button>
+    <button id="btnProdManualInput">생산량입력</button>
+    <button id="btnProdRemove" style="background:#8a2c2c;">발주제거</button>
+    <button id="btnProdReset">초기화</button>
+  </div>
+  <div id="prodTabs">
+    <button class="prodTabBtn active" data-ptab="prodView1">발주내역</button>
+    <button class="prodTabBtn" data-ptab="prodView2">인식현황</button>
+    <button class="prodTabBtn" data-ptab="prodView3">제거됨</button>
+    <div id="prodFileFilterArea">
+      파일: <select id="prodFileFilter"><option value="">전체</option></select>
+    </div>
+  </div>
+
+  <div id="prodView1" class="prodSheet active">
+    <div id="prodContent">
+      <div id="prodRawArea">
+        <div id="prodEmptyState" class="smallNote" style="padding:20px;">업로드된 발주서 내역이 없습니다. [발주서업로드]로 파일을 올려주세요.</div>
+        <div class="tableScroll">
+          <table id="prodRawTable" class="hidden">
+            <thead>
+              <tr>
+                <th class="rowIdx">#</th>
+                <th>상품명<span class="colFilterIcon" id="prodFilterIconName" title="필터">▾</span></th>
+                <th>수량(세트)<span class="colFilterIcon" id="prodFilterIconQty" title="필터">▾</span></th>
+              </tr>
+            </thead>
+            <tbody id="prodRawTbody"></tbody>
+          </table>
+        </div>
+        <div id="prodUploadLog" class="hidden"></div>
+      </div>
+      <div id="prodSummaryArea">
+        <div class="sectionTitle" style="margin-top:0;">정리 내역</div>
+        <table id="prodLineTable">
+          <thead><tr><th>상품</th><th>인분</th><th>세트수</th></tr></thead>
+          <tbody id="prodLineTbody"></tbody>
+        </table>
+
+        <div class="sectionTitle">상품별 총 인분</div>
+        <table id="prodBaseTable">
+          <thead><tr><th>상품</th><th>총 인분</th></tr></thead>
+          <tbody id="prodBaseTbody"></tbody>
+        </table>
+
+        <div class="sectionTitle">생산 횟수 요약</div>
+        <div id="prodRunSummary"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="prodView2" class="prodSheet">
+    <div class="tableScroll" style="padding:14px;">
+      <div class="sectionTitle" style="margin-top:0;">현재 업로드 내역 인식 현황</div>
+      <div class="smallNote">지금까지 올라온 발주서에 등장한 상품명별 인식 상태입니다.</div>
+      <table id="prodStatusTable">
+        <thead><tr><th>상품명(원본)</th><th>인식 결과</th><th>상태</th><th>관리</th></tr></thead>
+        <tbody id="prodStatusTbody"></tbody>
+      </table>
+      <div id="prodStatusEmpty" class="hidden smallNote" style="padding:16px 0;">업로드된 내역이 없습니다.</div>
+
+      <div class="sectionTitle">저장된 수동 매핑 (발주서업데이트로 등록됨)</div>
+      <table id="prodOverrideTable">
+        <thead><tr><th>원본 상품명</th><th>기본 상품명</th><th>1세트당 인분</th><th></th></tr></thead>
+        <tbody id="prodOverrideTbody"></tbody>
+      </table>
+      <div id="prodOverrideEmpty" class="hidden smallNote" style="padding:16px 0;">저장된 수동 매핑이 없습니다.</div>
+    </div>
+  </div>
+
+  <div id="prodView3" class="prodSheet">
+    <div class="tableScroll" style="padding:14px;">
+      <div class="sectionTitle" style="margin-top:0;">제거된 발주 내역</div>
+      <div class="smallNote">[발주제거]로 삭제한 내역입니다. 복원하면 발주내역에 다시 추가됩니다.</div>
+      <div style="margin:10px 0;">
+        <button type="button" id="btnProdRemovedRestoreAll" class="btnRestore">전체 복원</button>
+        <button type="button" id="btnProdRemovedClearAll" class="btnPermDelete">전체 영구삭제</button>
+      </div>
+      <table id="prodRemovedTable">
+        <thead><tr><th>상품명</th><th>수량(세트)</th><th>제거일시</th><th>관리</th></tr></thead>
+        <tbody id="prodRemovedTbody"></tbody>
+      </table>
+      <div id="prodRemovedEmpty" class="hidden smallNote" style="padding:16px 0;">제거된 내역이 없습니다.</div>
+    </div>
+  </div>
+</div>
+
+<div id="appInbound" class="appScreen">
+  <div id="inboundToolbar">
+    <button id="btnInboundUpload">세금계산서업로드</button>
+    <button id="btnInboundManual" style="background:#6b4c9a;">직접입력</button>
+    <button id="btnInboundColMap" style="background:#4b5d78;">열 매핑 설정</button>
+    <button id="btnInboundReset" style="background:#7a4d1f;">초기화</button>
+    <div id="inboundUploadSummary" class="hidden"></div>
+  </div>
+  <div id="inboundBody">
+    <div id="inboundCalendarArea">
+      <div id="inboundCalHeader">
+        <button id="btnInboundPrevMonth" class="btnGhost">◀</button>
+        <div id="inboundCalTitleWrap">
+          <div id="inboundCalTitle"></div>
+          <input type="month" id="inboundMonthPicker" title="이동할 연월 선택">
+        </div>
+        <button id="btnInboundNextMonth" class="btnGhost">▶</button>
+        <button id="btnInboundToday" class="btnGhost" style="margin-left:10px;">오늘</button>
+        <div id="inboundCalSummary" class="smallNote" style="margin-left:auto;"></div>
+      </div>
+      <div id="inboundCalGridWrap">
+        <div id="inboundCalGrid">
+          <div class="calHeadCell sun">일</div>
+          <div class="calHeadCell">월</div>
+          <div class="calHeadCell">화</div>
+          <div class="calHeadCell">수</div>
+          <div class="calHeadCell">목</div>
+          <div class="calHeadCell">금</div>
+          <div class="calHeadCell sat">토</div>
+          <div id="inboundCalBody"></div>
+        </div>
+      </div>
+    </div>
+    <div id="inboundDetailArea">
+      <div class="sectionTitle" style="margin-top:0;" id="inboundDetailTitle">날짜를 선택하세요</div>
+      <div id="inboundDetailList"></div>
+      <div id="inboundDetailEmpty" class="smallNote">달력에서 날짜를 클릭하면 그날 입고된 내역을 볼 수 있습니다.</div>
+    </div>
+  </div>
+</div>
+<input type="file" id="prodFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
+
+<input type="file" id="invoiceFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
+<input type="file" id="inboundFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
+<input type="text" id="clipboardProxy" autocomplete="off" style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px; opacity:0; border:none; padding:0;">
+<input type="text" id="prodClipboardProxy" autocomplete="off" style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px; opacity:0; border:none; padding:0;">
+
+<div id="overlay" class="overlay hidden"></div>
+
+<!-- 프로필 생성 모달 -->
+<div id="rowInsertMenu" class="hidden">
+  <div id="rowInsertMenuItem">복사한 행 삽입</div>
+</div>
+
+<div id="colFilterPopup" class="hidden">
+  <div id="colFilterColorSection" class="hidden">
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+      <input type="checkbox" id="colFilterColorOnly" style="width:auto;">
+      <span>🔴 배경색(강조표시) 있는 셀만 보기</span>
+    </label>
+  </div>
+  <input type="text" id="colFilterSearch" placeholder="검색">
+  <div class="colFilterBtnRow">
+    <button type="button" id="colFilterSelectAll" class="btnGhost">전체선택</button>
+    <button type="button" id="colFilterClearAll" class="btnGhost">전체해제</button>
+  </div>
+  <div id="colFilterList"></div>
+  <div class="modalBtns" style="justify-content:space-between;">
+    <button type="button" id="colFilterClearThis" style="padding:5px 12px;font-size:12px;border-radius:4px;border:none;cursor:pointer;background:#8a2c2c;color:#fff;">필터 해제</button>
+    <div>
+      <button type="button" class="btnGhost" id="colFilterCancel">취소</button>
+      <button type="button" class="btnPrimary" id="colFilterApply">적용</button>
+    </div>
+  </div>
+</div>
+
+<!-- 생산량계산기 발주내역 표(상품명/수량) 전용 필터 팝업 -->
+<div id="prodColFilterPopup" class="hidden">
+  <input type="text" id="prodColFilterSearch" placeholder="검색">
+  <div class="colFilterBtnRow">
+    <button type="button" id="prodColFilterSelectAll" class="btnGhost">전체선택</button>
+    <button type="button" id="prodColFilterClearAll" class="btnGhost">전체해제</button>
+  </div>
+  <div id="prodColFilterList"></div>
+  <div class="modalBtns" style="justify-content:space-between;">
+    <button type="button" id="prodColFilterClearThis" style="padding:5px 12px;font-size:12px;border-radius:4px;border:none;cursor:pointer;background:#8a2c2c;color:#fff;">필터 해제</button>
+    <div>
+      <button type="button" class="btnGhost" id="prodColFilterCancel">취소</button>
+      <button type="button" class="btnPrimary" id="prodColFilterApply">적용</button>
+    </div>
+  </div>
+</div>
+
+<div id="profileModal" class="modal hidden">
+  <h2 id="profileModalTitle">프로필 생성</h2>
+  <label>프로필(거래처) 이름</label>
+  <input type="text" id="pfName" placeholder="예: OO상사">
+
+  <div class="sectionTitle">송장 파일 열 매핑 (거래처 송장 양식 기준)</div>
+  <div class="smallNote">칸을 비워두면 업로드하는 송장 파일의 헤더에서 자동으로 열을 찾습니다. 자동인식 실패시 직접 지정하세요.</div>
+  <div class="row2">
+    <div><label>송장번호 열 (기본값-자동인식)</label><select id="pfTrackingCol"></select></div>
+    <div><label>주문번호 열 (기본값-자동인식)</label><select id="pfOrderNo"></select></div>
+  </div>
+  <div class="row2">
+    <div><label>집화예정일자 열 (기본값-자동인식)</label><select id="pfPickupDateCol"></select></div>
+    <div><label>데이터 시작 행</label><input type="number" id="pfInvoiceStartRow" value="2" min="1"></div>
+  </div>
+  <div class="row2">
+    <div><label>수취인 이름 열 (기본값-자동인식)</label><select id="pfRecipientName"></select></div>
+    <div><label>수취인 전화번호 열 (기본값-자동인식)</label><select id="pfRecipientPhone"></select></div>
+  </div>
+  <div class="row2">
+    <div><label>상품명 열 (기본값-자동인식)</label><select id="pfProductName"></select></div>
+    <div><label>내품갯수 열 (기본값-자동인식)</label><select id="pfQty"></select></div>
+  </div>
+  <div class="row2">
+    <div><label title="비워두면 헤더에서 &quot;추가운임비/기타운임&quot; 등이 포함된 열을 자동으로 찾습니다.">추가운임비 열 (기본값-자동인식)</label><select id="pfExtraFeeCol"></select></div>
+  </div>
+
+  <div class="sectionTitle">상품명 자동 합치기</div>
+  <div class="smallNote">체크하면 송장 업로드 시 "상품명 + 내품갯수"를 합쳐 상품명을 만듭니다. 예: 상품명 "칼국수" + 내품갯수 "10" → 상품명 "칼국수 10인" (내품갯수는 1로 재설정됩니다). 이미 상품명에 인분수가 포함된 거래처는 체크하지 마세요.</div>
+  <div class="row2">
+    <div><label><input type="checkbox" id="pfCombineNameQty" style="width:auto;vertical-align:middle;margin-right:6px;">상품명에 내품갯수 자동으로 합치기</label></div>
+  </div>
+
+  <div class="modalBtns">
+    <button class="btnGhost" id="pfCancel">취소</button>
+    <button class="btnPrimary" id="pfSave">저장</button>
+  </div>
+</div>
+
+<!-- 단가입력 모달 -->
+<div id="priceModal" class="modal hidden">
+  <h2>단가 입력 (단가 미입력 상품)</h2>
+  <div id="priceModalList"></div>
+  <div id="priceModalEmpty" class="hidden smallNote">단가가 입력되지 않은 상품이 없습니다.</div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="priceCancel">닫기</button>
+    <button class="btnPrimary" id="priceSave">저장</button>
+  </div>
+</div>
+
+<!-- CS 모달 -->
+<div id="csModal" class="modal hidden">
+  <h2>CS 처리</h2>
+  <label>검색 (송장번호 / 수취인 / 전화번호 중 1개 이상)</label>
+  <input type="text" id="csSearchInput" placeholder="검색어 입력">
+  <button id="csSearchBtn" class="btnGhost" style="margin-top:8px;padding:6px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;">검색</button>
+  <div id="csResults"></div>
+
+  <div id="csApplyArea" class="hidden">
+    <div class="sectionTitle">선택한 건 처리</div>
+    <label>사유</label>
+    <input type="text" id="csReason" placeholder="예: 파손 전액환불">
+    <label>환불금액</label>
+    <input type="number" id="csAmount" placeholder="예: 4000">
+  </div>
+
+  <div class="modalBtns">
+    <button class="btnGhost" id="csCancel">닫기</button>
+    <button class="btnPrimary" id="csApply">적용</button>
+  </div>
+</div>
+
+<!-- 송장 업로드 내역 모달 -->
+<div id="invoiceUploadLogModal" class="modal hidden" style="width:520px;">
+  <h2>송장 업로드 내역</h2>
+  <div id="invoiceUploadLogList" style="margin-top:10px;max-height:360px;overflow-y:auto;"></div>
+  <div id="invoiceUploadLogEmpty" class="hidden smallNote">업로드 내역이 없습니다.</div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="invoiceUploadLogClose">닫기</button>
+  </div>
+</div>
+
+<!-- 송장 업로드: 상품명 인식 실패 내역 -->
+<div id="invoiceFailListModal" class="modal hidden" style="width:560px;">
+  <h2>송장 업로드 실패 내역</h2>
+  <div class="smallNote">송장번호를 인식하지 못해 표에 추가되지 못한 행과, 표에는 추가됐지만 상품명을 인식하지 못한 행을 함께 보여줍니다. 클릭 가능한 항목은 클릭하면 정산내역 표에서 해당 행으로 이동합니다.</div>
+  <div id="invoiceFailList" style="margin-top:10px;max-height:400px;overflow-y:auto;"></div>
+  <div id="invoiceFailListEmpty" class="hidden smallNote">현재 상품명 인식 실패 항목이 없습니다.</div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="invoiceFailListClose">닫기</button>
+  </div>
+</div>
+
+<!-- 발주서업데이트(인식 실패 항목 수정) 모달 -->
+<div id="prodUpdateModal" class="modal hidden" style="width:600px;">
+  <h2>발주서업데이트 (인식 실패 항목 수정)</h2>
+  <div class="smallNote">인식에 실패한 상품명별로 기본 상품명과 1세트당 인분 수를 입력하면, 지금 내역은 물론 앞으로 같은 이름으로 올라오는 발주서도 자동으로 인식됩니다.</div>
+  <div id="prodUpdateList" style="margin-top:10px;"></div>
+  <div id="prodUpdateEmpty" class="hidden smallNote">인식 실패 항목이 없습니다.</div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="prodUpdateCancel">닫기</button>
+    <button class="btnPrimary" id="prodUpdateSave">저장</button>
+  </div>
+</div>
+
+<!-- 생산량계산기: 발주서 없이 오프라인으로 나가는 생산량 직접 입력 모달 -->
+<div id="prodManualInputModal" class="modal hidden">
+  <h2>생산량 입력 (오프라인 생산)</h2>
+  <div class="smallNote">발주서를 거치지 않고 별도로 생산해서 나가는 물량을 발주내역에 직접 추가합니다. (예: 상품명 "칼국수", 인분 수 "500" 입력 시 "칼국수 500인분"이 추가됩니다)</div>
+  <div class="row2">
+    <div><label>상품명</label><input type="text" id="prodManualBase" placeholder="예: 칼국수"></div>
+    <div><label>인분 수</label><input type="number" id="prodManualPerSet" placeholder="예: 500" min="1"></div>
+  </div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="prodManualCancel">취소</button>
+    <button class="btnPrimary" id="prodManualSave">추가</button>
+  </div>
+</div>
+
+<!-- 생산량계산기: 발주제거 전, 정리 내역/상품별 총 인분과 동일한 표 형식으로 제거될 내역을 확인하는 모달 -->
+<div id="prodRemoveConfirmModal" class="modal hidden">
+  <h2>발주내역에서 제거</h2>
+  <div class="smallNote">선택한 범위에서 다음 내역이 제거됩니다. ([제거됨] 탭에서 나중에 복원할 수 있습니다)</div>
+  <div class="sectionTitle" style="margin-top:12px;">정리 내역</div>
+  <table id="prodRemoveConfirmLineTable">
+    <thead><tr><th>상품</th><th>인분</th><th>세트수</th></tr></thead>
+    <tbody id="prodRemoveConfirmLineTbody"></tbody>
+  </table>
+  <div class="sectionTitle">상품별 총 인분</div>
+  <table id="prodRemoveConfirmBaseTable">
+    <thead><tr><th>상품</th><th>총 인분</th></tr></thead>
+    <tbody id="prodRemoveConfirmBaseTbody"></tbody>
+  </table>
+  <div id="prodRemoveConfirmUnparsed" class="hidden smallNote" style="margin-top:10px;color:#a13a3a;"></div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="prodRemoveConfirmCancel">취소</button>
+    <button class="btnPrimary" id="prodRemoveConfirmOk" style="background:#8a2c2c;">제거</button>
+  </div>
+</div>
+
+<!-- 생산량계산기: 인식현황 탭에서 개별 상품의 인식 결과(상품명/인분수)를 수정하는 모달 -->
+<div id="prodFixModal" class="modal hidden">
+  <h2>상품 수정</h2>
+  <div class="smallNote" id="prodFixOrigLabel"></div>
+  <div class="smallNote">성공으로 인식됐지만 다른 상품/인분수로 잘못 인식된 경우 여기서 바로잡을 수 있습니다.</div>
+  <div class="row2">
+    <div><label>기본 상품명</label><input type="text" id="prodFixBase" placeholder="예: 칼국수"></div>
+    <div><label>1세트당 인분</label><input type="number" id="prodFixPerSet" placeholder="예: 10" min="1"></div>
+  </div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="prodFixCancel">취소</button>
+    <button class="btnPrimary" id="prodFixSave">저장</button>
+  </div>
+</div>
+
+<!-- 생산량계산기: 인식 0건일 때 열 재지정 후 재업로드하는 모달 -->
+<div id="prodRemapModal" class="modal hidden">
+  <h2>발주서 열 재매핑</h2>
+  <div class="smallNote" id="prodRemapFileLabel"></div>
+  <div class="smallNote">자동 인식에 실패했습니다. 상품명과 수량이 들어있는 열을 직접 지정한 뒤 재업로드하세요.</div>
+  <div class="row2">
+    <div><label>상품명 열</label><select id="prodRemapProductName"></select></div>
+    <div><label>수량 열</label><select id="prodRemapQty"></select></div>
+  </div>
+  <div class="row2">
+    <div><label>데이터 시작 행</label><input type="number" id="prodRemapStartRow" value="2" min="1"></div>
+  </div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="prodRemapCancel">취소</button>
+    <button class="btnPrimary" id="prodRemapSave">재업로드</button>
+  </div>
+</div>
+
+<!-- 입고일지: 세금계산서 파일 없이 날짜를 직접 선택해 내역을 추가하는 모달 -->
+<div id="inboundManualModal" class="modal hidden" style="width:360px;">
+  <h2>세금계산서 직접입력</h2>
+  <div class="smallNote">세금계산서 파일이 없을 때 달력에서 날짜를 선택하고 내용을 직접 입력해 입고일지에 추가합니다.</div>
+  <div id="manualCalHeader">
+    <button type="button" id="btnManualCalPrev" class="btnGhost">◀</button>
+    <div id="manualCalTitle"></div>
+    <button type="button" id="btnManualCalNext" class="btnGhost">▶</button>
+  </div>
+  <div id="manualCalGrid"></div>
+  <div class="smallNote" id="manualSelectedDateLabel" style="margin-top:8px;font-weight:bold;color:#2b3a55;"></div>
+  <div class="row2" style="margin-top:10px;">
+    <div><label>거래처</label><input type="text" id="manualVendor" placeholder="예: OO상사"></div>
+    <div><label>품목명</label><input type="text" id="manualItem" placeholder="예: 칼국수 10인분"></div>
+  </div>
+  <div class="row2">
+    <div><label>수량</label><input type="number" id="manualQty" placeholder="예: 10" min="0"></div>
+    <div><label>금액</label><input type="number" id="manualAmount" placeholder="예: 100000" min="0"></div>
+  </div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="manualCancel">취소</button>
+    <button class="btnPrimary" id="manualSave">추가</button>
+  </div>
+</div>
+
+<!-- 입고일지: 세금계산서 열 매핑 설정 모달 -->
+<div id="inboundColMapModal" class="modal hidden">
+  <h2>세금계산서 열 매핑 설정</h2>
+  <div class="smallNote">칸을 비워두면 업로드하는 파일의 헤더에서 자동으로 열을 찾습니다. 자동인식이 잘못될 때만 직접 지정하세요.</div>
+  <div class="row2">
+    <div><label>날짜 열 (기본값-자동인식)</label><select id="inboundColDate"></select></div>
+    <div><label>거래처(공급자) 열 (기본값-자동인식)</label><select id="inboundColVendor"></select></div>
+  </div>
+  <div class="row2">
+    <div><label>품목명 열 (기본값-자동인식)</label><select id="inboundColItem"></select></div>
+    <div><label>수량 열 (기본값-자동인식)</label><select id="inboundColQty"></select></div>
+  </div>
+  <div class="row2">
+    <div><label>금액 열 (기본값-자동인식)</label><select id="inboundColAmount"></select></div>
+    <div><label>데이터 시작 행</label><input type="number" id="inboundColStartRow" value="2" min="1"></div>
+  </div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="inboundColMapCancel">취소</button>
+    <button class="btnPrimary" id="inboundColMapSave">저장</button>
+  </div>
+</div>
+
+<!-- 입고일지: 업로드 내역 모달 -->
+<div id="inboundUploadLogModal" class="modal hidden" style="width:520px;">
+  <h2>세금계산서 업로드 내역</h2>
+  <div id="inboundUploadLogList" style="margin-top:10px;max-height:360px;overflow-y:auto;"></div>
+  <div id="inboundUploadLogEmpty" class="hidden smallNote">업로드 내역이 없습니다.</div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="inboundUploadLogClose">닫기</button>
+  </div>
+</div>
+
+<script>
+/* ===================== 상태 & 유틸 ===================== */
+const STORAGE_KEY = 'autoSettleApp_v1';
+const FIELDS = [
+  {letter:'A', key:'pickupDate', label:'집화예정일자'},
+  {letter:'B', key:'orderNo', label:'주문번호'},
+  {letter:'C', key:'invoiceNo', label:'송장번호'},
+  {letter:'D', key:'recipientName', label:'수취인 이름'},
+  {letter:'E', key:'recipientPhone', label:'수취인 전화번호'},
+  {letter:'F', key:'productName', label:'상품명'},
+  {letter:'G', key:'qty', label:'내품갯수'},
+  {letter:'H', key:'price', label:'상품금액'},
+  {letter:'I', key:'combinedPack', label:'합포장'},
+  {letter:'J', key:'extraFee', label:'추가운임비'},
+  {letter:'K', key:'csContent', label:'CS내용'},
+  {letter:'L', key:'refundAmount', label:'환불금액'},
+  {letter:'M', key:'settlementAmount', label:'정산금액'},
+];
+
+let appState = {
+  profiles: [], currentProfileId: null,
+  prodRows: [], prodUploadLog: [], prodOverrides: {}, prodRemovedRows: [],
+  inboundRows: [], inboundUploadLog: [],
+  inboundColMap: { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 },
+};
+
+let prodFixOrigName = null; // 인식현황 탭 "상품수정" 모달에서 현재 수정 중인 원본 상품명
+
+// 재매핑용 원본 시트 데이터 캐시 (인식 0건인 파일만 임시 보관, 브라우저 새로고침 시 소멸 - localStorage에는 저장하지 않음)
+let prodRawFileCache = {};
+let prodRemapLogId = null;
+let prodFileFilterId = ''; // ''(전체) 또는 특정 업로드 기록의 id, 또는 PROD_MANUAL_FILTER(직접입력) -> 발주내역을 해당 항목만 필터링
+const PROD_MANUAL_FILTER = '__manual__'; // "생산량입력"으로 추가한 오프라인 생산분만 보기 위한 필터 값
+const PROD_RESTORED_FILTER = '__restored__'; // [제거됨] 탭에서 복원한 내역만 보기 위한 필터 값
+function nextProdLogId() {
+  return 'plog_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function nextInvoiceLogId() {
+  return 'olog_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) appState = JSON.parse(raw);
+  } catch (e) { console.warn('state load fail', e); }
+  if (!appState.prodRows) appState.prodRows = []; // 이전 버전 데이터 호환
+  if (!appState.prodUploadLog) appState.prodUploadLog = [];
+  if (!appState.prodOverrides || typeof appState.prodOverrides !== 'object' || Array.isArray(appState.prodOverrides)) {
+    appState.prodOverrides = {};
+  }
+  if (!appState.prodRemovedRows) appState.prodRemovedRows = []; // 이전 버전 데이터 호환
+  if (appState.profiles) {
+    appState.profiles.forEach(p => {
+      if (!p.invoiceUploadLog) p.invoiceUploadLog = []; // 이전 버전 데이터 호환
+      if (!p.invoiceFailedRows) p.invoiceFailedRows = []; // 이전 버전 데이터 호환(업로드 시 제외된 행 상세 내역)
+      if (!p.invoiceMap || typeof p.invoiceMap !== 'object') p.invoiceMap = {};
+      if (p.invoiceMap.orderNo === undefined) {
+        // 발주서업로드 + 송장매칭 방식이던 이전 버전 프로필을 송장 단일 업로드 체계로 마이그레이션
+        const oldOrderMap = p.orderMap || {};
+        p.invoiceMap = {
+          trackingCol: p.invoiceMap.trackingCol || '',
+          orderNo: p.invoiceMap.orderNoCol || oldOrderMap.orderNo || '',
+          pickupDateCol: p.invoiceMap.pickupDateCol || '',
+          recipientName: oldOrderMap.recipientName || '',
+          recipientPhone: oldOrderMap.recipientPhone || '',
+          productName: oldOrderMap.productName || '',
+          qty: oldOrderMap.qty || '',
+          extraFeeCol: p.invoiceMap.extraFeeCol || '',
+        };
+      }
+      if (!p.invoiceStartRow) p.invoiceStartRow = p.orderStartRow || 2;
+    });
+  }
+  if (!appState.inboundRows) appState.inboundRows = []; // 이전 버전 데이터 호환
+  if (!appState.inboundUploadLog) appState.inboundUploadLog = [];
+  if (!appState.inboundColMap || typeof appState.inboundColMap !== 'object') {
+    appState.inboundColMap = { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 };
+  }
+}
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+}
+function getCurrentProfile() {
+  return appState.profiles.find(p => p.id === appState.currentProfileId) || null;
+}
+function colToIdx(letter) {
+  if (!letter) return -1;
+  letter = letter.toUpperCase().trim();
+  let idx = 0;
+  for (let i = 0; i < letter.length; i++) idx = idx * 26 + (letter.charCodeAt(i) - 64);
+  return idx - 1;
+}
+function idxToCol(idx) {
+  let s = '';
+  idx += 1;
+  while (idx > 0) {
+    let rem = (idx - 1) % 26;
+    s = String.fromCharCode(65 + rem) + s;
+    idx = Math.floor((idx - 1) / 26);
+  }
+  return s;
+}
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+
+// 헤더 행에서 키워드와 일치하는 열을 찾아 인덱스 반환 (우선순위 순서로 검색, 못 찾으면 -1)
+// excludeKeywords에 포함된 문구가 헤더에 있으면 그 열은 후보에서 제외한다 (예: 이름 검색 시 전화번호 열 제외)
+function findHeaderIdx(headerRow, keywords, excludeKeywords) {
+  for (const kw of keywords) {
+    const idx = headerRow.findIndex(h => {
+      const text = String(h || '');
+      if (!text.includes(kw)) return false;
+      if (excludeKeywords && excludeKeywords.some(ex => text.includes(ex))) return false;
+      return true;
+    });
+    if (idx !== -1) return idx;
+  }
+  return -1;
+}
+const ORDER_NO_KEYWORDS = ['주문번호', '주문 번호', '주문No', '주문no', '주문'];
+const RECIPIENT_NAME_KEYWORDS = ['수취인명', '수취인 이름', '받는사람', '받는분', '수령인명', '수령인', '성명', '고객명', '수취인'];
+const RECIPIENT_NAME_EXCLUDE = ['전화', '연락처', '휴대폰', '핸드폰', '폰번호'];
+const RECIPIENT_PHONE_KEYWORDS = ['받는분전화번호', '받는분 전화번호', '받는사람전화번호', '수취인연락처', '수취인전화번호', '전화번호', '연락처', '휴대폰', '핸드폰', '폰번호'];
+// "보내는분전화번호"처럼 발송인(보내는분) 쪽 전화번호 열이 먼저 매칭되지 않도록 제외
+const RECIPIENT_PHONE_EXCLUDE = ['보내는', '발송인', '보내는분'];
+// "N인분" 형식의 실제 옵션/수량 내역이 들어있을 가능성이 높은 열부터 우선 검색
+const PRODUCT_NAME_KEYWORDS = ['선택사항', '옵션정보', '옵션명', '옵션', '단품명', '상품명', '품목명', '제품명', '상품'];
+// "추가구매옵션"처럼 비어있거나 부가상품용인 열이 잘못 잡히지 않도록 제외
+const PRODUCT_NAME_EXCLUDE = ['추가구매', '추가옵션', '사은품'];
+const QTY_KEYWORDS = ['내품갯수', '내품수량', '수량', '갯수', '개수'];
+// "수량클레임 여부"처럼 수량과 무관한 열이 먼저 잡히지 않도록 제외
+const QTY_EXCLUDE = ['클레임', '여부'];
+const TRACKING_NO_KEYWORDS = ['송장번호', '운송장번호', '운송장', '송장'];
+const PICKUP_DATE_KEYWORDS = ['집화예정일자', '집화예정일', '집화일자', '집화날짜', '발송예정일', '출고예정일', '집화'];
+const EXTRA_FEE_KEYWORDS = ['추가운임비', '기타운임', '추가운임', '도서산간', '제주추가금', '추가금액', '추가배송비', '추가금'];
+
+// orderMap의 열 지정값(letter 또는 빈값)을 실제 열 인덱스로 변환. 빈값이면 헤더에서 자동 감지.
+function resolveOrderColIdx(letterOrBlank, headerRow, keywords, excludeKeywords) {
+  if (letterOrBlank) return colToIdx(letterOrBlank);
+  return findHeaderIdx(headerRow, keywords, excludeKeywords);
+}
+
+// 후보 헤더가 여러 개일 수 있는 경우, 우선순위가 높은 열이라도
+// 실제 데이터 행의 절반 미만에만 값이 있으면(=일부 행에만 예외적으로 메모성 값이 적힌 경우 등)
+// 건너뛰고 값이 충분히 채워진 다음 후보 열을 사용한다.
+// (예: "옵션" 열은 30건 중 1건만 값이 있고, 실제 "N인분" 값은 "상품명" 열에 전부 들어있는 발주서)
+function findSmartColIdx(aoa, startRow, keywords, excludeKeywords) {
+  const headerRow = aoa[0] || [];
+  const totalDataRows = Math.max(aoa.length - (startRow - 1), 0);
+  let bestIdx = -1;
+  let bestFilled = -1;
+  for (const kw of keywords) {
+    const idx = headerRow.findIndex(h => {
+      const text = String(h || '');
+      if (!text.includes(kw)) return false;
+      if (excludeKeywords && excludeKeywords.some(ex => text.includes(ex))) return false;
+      return true;
+    });
+    if (idx === -1) continue;
+    let filled = 0;
+    for (let i = startRow - 1; i < aoa.length; i++) {
+      const v = aoa[i] ? aoa[i][idx] : undefined;
+      if (v !== undefined && v !== null && String(v).trim() !== '') filled++;
+    }
+    // 데이터 행의 절반 이상 채워져 있어야 실제 값이 들어있는 열로 인정하고 바로 채택
+    if (totalDataRows > 0 && filled / totalDataRows >= 0.5) return idx;
+    if (filled > bestFilled) { bestFilled = filled; bestIdx = idx; }
+  }
+  // 우선순위 키워드 중 절반 이상 채워진 열이 하나도 없다면, 그나마 값이 가장 많이 채워진 열을 사용
+  return bestIdx;
+}
+function resolveProductNameColIdx(letterOrBlank, aoa, startRow) {
+  if (letterOrBlank) return colToIdx(letterOrBlank);
+  return findSmartColIdx(aoa, startRow, PRODUCT_NAME_KEYWORDS, PRODUCT_NAME_EXCLUDE);
+}
+
+/* ===================== 입고일지 ===================== */
+const INBOUND_DATE_KEYWORDS = ['작성일자', '발급일자', '거래일자', '승인일자', '일자'];
+const INBOUND_VENDOR_KEYWORDS = ['공급자상호', '거래처명', '거래처', '상호'];
+const INBOUND_VENDOR_EXCLUDE = ['공급받는자'];
+const INBOUND_ITEM_KEYWORDS = ['품목명', '품명', '품목'];
+const INBOUND_QTY_KEYWORDS = ['수량'];
+const INBOUND_AMOUNT_KEYWORDS = ['공급가액', '합계금액', '금액'];
+
+// 열 지정값(letter 또는 빈값)을 실제 열 인덱스로 변환한다. 빈값이면 헤더 우선순위 키워드 + 데이터 채움 비율 기반으로 자동 감지한다.
+// (입고일지, 자동정산기 송장업로드 등 여러 모듈에서 공용으로 사용)
+function resolveSmartColIdx(letterOrBlank, aoa, startRow, keywords, excludeKeywords) {
+  if (letterOrBlank) return colToIdx(letterOrBlank);
+  return findSmartColIdx(aoa, startRow, keywords, excludeKeywords);
+}
+
+// 엑셀 날짜 일련번호, "20260727", "2026-07-27", "2026.07.27" 등 다양한 형식을 'YYYY-MM-DD'로 정규화.
+// 알 수 없는 형식이면 빈 문자열을 돌려줘서 인식 실패로 처리한다(달력에 배치할 수 없으므로).
+function formatInboundDate(val) {
+  if (val === undefined || val === null || val === '') return '';
+  if (typeof val === 'number') {
+    try {
+      const d = XLSX.SSF.parse_date_code(val);
+      if (d) return `${d.y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+    } catch (e) { /* 변환 실패 시 아래 문자열 파싱으로 계속 */ }
+  }
+  const s = String(val).trim();
+  let m = s.match(/^(\d{4})(\d{2})(\d{2})$/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  m = s.match(/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  return '';
+}
+function rowIsEmpty(row) {
+  if (!row) return true;
+  return row.every(c => c === undefined || c === null || String(c).trim() === '');
+}
+function fmtNum(n) {
+  if (n === undefined || n === null || n === '') return '';
+  const num = Number(n);
+  if (isNaN(num)) return String(n);
+  return num.toLocaleString('ko-KR');
+}
+
+/* ===================== 렌더링 ===================== */
+function buildColumnSelectOptions(selectEl) {
+  selectEl.innerHTML = '';
+  for (let i = 0; i < 52; i++) { // A~Z, AA~AZ 까지 표시
+    const letter = idxToCol(i);
+    const opt = document.createElement('option');
+    opt.value = letter;
+    opt.textContent = letter;
+    selectEl.appendChild(opt);
+  }
+}
+
+function renderProfileSelect() {
+  const sel = document.getElementById('profileSelect');
+  sel.innerHTML = '';
+  if (appState.profiles.length === 0) {
+    const opt = document.createElement('option');
+    opt.textContent = '(프로필 없음)';
+    opt.value = '';
+    sel.appendChild(opt);
+    return;
+  }
+  appState.profiles.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = p.name;
+    sel.appendChild(opt);
+  });
+  sel.value = appState.currentProfileId || appState.profiles[0].id;
+}
+
+/* ===================== 정산내역 열 필터 (엑셀 자동필터 방식) ===================== */
+let mainTableFilters = {}; // { [필드key]: Set(선택된 값들) } - 키가 없으면 해당 열은 필터링 안 함
+let mainTableColorFilters = {}; // { [필드key]: true } - true이면 해당 열의 배경색(강조표시) 있는 셀만 표시
+let colFilterActiveField = null;
+let colFilterPendingSet = null;
+
+// 배경색(강조표시) 필터를 지원하는 열: 상품명 인식실패, 상품금액 0원, 송장번호 매칭실패/중복
+const COLOR_FILTER_FIELDS = ['invoiceNo', 'productName', 'price'];
+// 실제 표에서 빨간 배경으로 강조 표시되는 셀인지 판단 (renderMainTable의 클래스 부여 조건과 동일하게 유지)
+function isCellHighlighted(row, key, profile) {
+  if (key === 'invoiceNo') return !!row.invoiceMatchFailed || !!row.duplicate;
+  if (key === 'productName') return !!row.productNameFailed;
+  if (key === 'price') return !!profile.settled && (Number(row.price) || 0) === 0;
+  return false;
+}
+
+// 필터/화면 표시에 쓰는 값으로 정규화(숫자형 필드는 화면에 보이는 형식과 동일하게, 빈 값은 '')
+function getDisplayValueForFilter(row, key) {
+  const val = row[key];
+  if (NUMERIC_FIELDS.includes(key)) {
+    return (val === 0 || val) ? fmtNum(val) : '';
+  }
+  return val || '';
+}
+function getDistinctColumnValues(profile, key) {
+  const set = new Set();
+  profile.rows.forEach(r => set.add(String(getDisplayValueForFilter(r, key))));
+  return [...set].sort((a, b) => a.localeCompare(b, 'ko'));
+}
+function rowMatchesFilters(row, profile) {
+  for (const key in mainTableFilters) {
+    const filterSet = mainTableFilters[key];
+    if (!filterSet) continue;
+    if (!filterSet.has(String(getDisplayValueForFilter(row, key)))) return false;
+  }
+  for (const key in mainTableColorFilters) {
+    if (mainTableColorFilters[key] && !isCellHighlighted(row, key, profile)) return false;
+  }
+  return true;
+}
+
+function renderHeaders() {
+  const colRow = document.getElementById('colHeaderRow');
+  const fieldRow = document.getElementById('fieldHeaderRow');
+  colRow.innerHTML = '<th class="rowIdx">#</th>';
+  fieldRow.innerHTML = '<th class="rowIdx"></th>';
+  FIELDS.forEach(f => {
+    const isFiltered = !!(mainTableFilters[f.key] || mainTableColorFilters[f.key]);
+    const th1 = document.createElement('th');
+    th1.textContent = f.letter;
+    if (isFiltered) th1.classList.add('filteredColHeader');
+    colRow.appendChild(th1);
+    const th2 = document.createElement('th');
+    if (isFiltered) th2.classList.add('filteredColHeader');
+    const labelSpan = document.createElement('span');
+    labelSpan.textContent = f.label;
+    th2.appendChild(labelSpan);
+    const icon = document.createElement('span');
+    icon.className = 'colFilterIcon' + (isFiltered ? ' activeFilter' : '');
+    icon.textContent = isFiltered ? '▼' : '▾';
+    icon.title = isFiltered ? '필터 적용됨 (클릭해서 확인/해제)' : '필터';
+    icon.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openColFilterPopup(f, icon);
+    });
+    th2.appendChild(icon);
+    fieldRow.appendChild(th2);
+  });
+}
+
+function openColFilterPopup(field, anchorEl) {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  colFilterActiveField = field;
+  const distinct = getDistinctColumnValues(profile, field.key);
+  const existing = mainTableFilters[field.key];
+  colFilterPendingSet = existing ? new Set(existing) : new Set(distinct);
+
+  const colorSection = document.getElementById('colFilterColorSection');
+  const colorCb = document.getElementById('colFilterColorOnly');
+  if (COLOR_FILTER_FIELDS.includes(field.key)) {
+    colorSection.classList.remove('hidden');
+    colorCb.checked = !!mainTableColorFilters[field.key];
+  } else {
+    colorSection.classList.add('hidden');
+    colorCb.checked = false;
+  }
+
+  const listEl = document.getElementById('colFilterList');
+  listEl.innerHTML = '';
+  distinct.forEach(val => {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = colFilterPendingSet.has(val);
+    cb.dataset.val = val;
+    cb.addEventListener('change', () => {
+      if (cb.checked) colFilterPendingSet.add(val); else colFilterPendingSet.delete(val);
+    });
+    const span = document.createElement('span');
+    span.textContent = val === '' ? '(비어있음)' : val;
+    label.appendChild(cb);
+    label.appendChild(span);
+    listEl.appendChild(label);
+  });
+
+  document.getElementById('colFilterSearch').value = '';
+  const popup = document.getElementById('colFilterPopup');
+  popup.classList.remove('hidden');
+  const rect = anchorEl.getBoundingClientRect();
+  const popupWidth = 220;
+  popup.style.top = `${rect.bottom + 4}px`;
+  popup.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - popupWidth - 20))}px`;
+}
+document.getElementById('colFilterSearch').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#colFilterList label').forEach(label => {
+    const text = label.querySelector('span').textContent.toLowerCase();
+    const matches = text.includes(q);
+    label.style.display = matches ? 'flex' : 'none';
+    // 검색어가 있을 때, 검색어가 포함되지 않은 항목은 선택(체크) 해제한다
+    if (q && !matches) {
+      const cb = label.querySelector('input');
+      if (cb.checked) {
+        cb.checked = false;
+        colFilterPendingSet.delete(cb.dataset.val);
+      }
+    }
+  });
+});
+document.getElementById('colFilterSelectAll').addEventListener('click', () => {
+  document.querySelectorAll('#colFilterList label').forEach(label => {
+    if (label.style.display === 'none') return;
+    const cb = label.querySelector('input');
+    cb.checked = true;
+    colFilterPendingSet.add(cb.dataset.val);
+  });
+});
+document.getElementById('colFilterClearAll').addEventListener('click', () => {
+  document.querySelectorAll('#colFilterList label').forEach(label => {
+    if (label.style.display === 'none') return;
+    const cb = label.querySelector('input');
+    cb.checked = false;
+    colFilterPendingSet.delete(cb.dataset.val);
+  });
+});
+document.getElementById('colFilterCancel').addEventListener('click', () => {
+  document.getElementById('colFilterPopup').classList.add('hidden');
+});
+document.getElementById('colFilterApply').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  const distinct = profile ? getDistinctColumnValues(profile, colFilterActiveField.key) : [];
+  if (colFilterPendingSet.size >= distinct.length) {
+    delete mainTableFilters[colFilterActiveField.key]; // 전체 선택 상태면 필터 없음으로 정리
+  } else {
+    mainTableFilters[colFilterActiveField.key] = colFilterPendingSet;
+  }
+  if (COLOR_FILTER_FIELDS.includes(colFilterActiveField.key)) {
+    if (document.getElementById('colFilterColorOnly').checked) {
+      mainTableColorFilters[colFilterActiveField.key] = true;
+    } else {
+      delete mainTableColorFilters[colFilterActiveField.key];
+    }
+  }
+  document.getElementById('colFilterPopup').classList.add('hidden');
+  renderHeaders();
+  renderMainTable();
+});
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('colFilterPopup');
+  if (popup.classList.contains('hidden')) return;
+  if (popup.contains(e.target) || e.target.closest('.colFilterIcon')) return;
+  popup.classList.add('hidden');
+});
+document.getElementById('colFilterClearThis').addEventListener('click', () => {
+  if (colFilterActiveField) {
+    delete mainTableFilters[colFilterActiveField.key];
+    delete mainTableColorFilters[colFilterActiveField.key];
+  }
+  document.getElementById('colFilterPopup').classList.add('hidden');
+  renderHeaders();
+  renderMainTable();
+});
+
+function renderMainTable() {
+  const tbody = document.getElementById('mainTbody');
+  tbody.innerHTML = '';
+  const profile = getCurrentProfile();
+  const empty = document.getElementById('emptyState');
+  const table = document.getElementById('mainTable');
+  if (!profile) {
+    empty.classList.remove('hidden');
+    table.classList.add('hidden');
+    document.getElementById('summaryArea').classList.add('hidden');
+    selection = null; anchorCell = null; activeCell = null;
+    return;
+  }
+  empty.classList.add('hidden');
+  table.classList.remove('hidden');
+
+  profile.rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (r.duplicate) tr.classList.add('dupRow');
+    if (!rowMatchesFilters(r, profile)) tr.classList.add('hidden'); // 열 필터에 걸러진 행은 화면에서만 숨김(데이터/인덱스는 그대로 유지)
+    const tdIdx = document.createElement('td');
+    tdIdx.className = 'rowIdx';
+    tdIdx.textContent = i + 1;
+    tdIdx.dataset.rowIndex = i; // 엑셀처럼 좌측 행 머리글을 드래그해서 행 전체를 선택할 수 있도록
+    tr.appendChild(tdIdx);
+
+    FIELDS.forEach((f, colIdx) => {
+      const td = document.createElement('td');
+      let val = r[f.key];
+      if (NUMERIC_FIELDS.includes(f.key)) {
+        td.textContent = (val === 0 || val) ? fmtNum(val) : '';
+      } else {
+        td.textContent = val || '';
+      }
+      if (f.key === 'invoiceNo') {
+        td.classList.add('invoiceCell');
+        if (r.invoiceMatchFailed) {
+          td.classList.add('invoiceFailCell');
+          td.textContent = r.invoiceFailReason || '매칭 실패';
+          td.title = r.invoiceFailReason || '매칭 실패';
+        }
+      }
+      if (f.key === 'productName' && r.productNameFailed) {
+        td.classList.add('productFailCell');
+        td.title = '송장에서 상품명을 인식하지 못했습니다.';
+      }
+      if (f.key === 'price' && profile.settled && (Number(r.price) || 0) === 0) {
+        td.classList.add('priceZeroCell');
+        td.title = '단가 매칭 실패 등으로 상품금액이 0원입니다.';
+      }
+      td.classList.add('editableCell');
+      td.contentEditable = 'false';
+      td.dataset.rowIndex = i;
+      td.dataset.colIndex = colIdx;
+      td.dataset.field = f.key;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+  clampSelectionToProfile(profile);
+  applySelectionVisual();
+  applyClipboardVisual();
+  renderSummary(profile);
+}
+
+/* ===================== 셀 직접 수정 (엑셀처럼 범위 선택 + 동시 수정) ===================== */
+const NUMERIC_FIELDS = ['qty','price','combinedPack','extraFee','refundAmount','settlementAmount'];
+
+let anchorCell = null;   // { r, c } 선택 시작 모서리
+let activeCell = null;   // { r, c } 현재 활성 셀(선택의 이동 모서리)
+let selection = null;    // { r1, c1, r2, c2 } 정규화된 선택 범위
+let isDragging = false;
+let isRowHeaderDrag = false; // 좌측 행 머리글(#)을 드래그하는 중인지 여부(드래그 동안 열 범위를 전체로 고정)
+let clipboardRange = null; // { r1, c1, r2, c2 } 복사/잘라내기한 범위(엑셀처럼 점선 테두리로 표시)
+let clipboardMode = null;  // 'copy' | 'cut' | null
+let editingCell = null;  // { r, c } 현재 편집 중인 셀 (편집 모드가 아니면 null)
+
+function normSel(a, b) {
+  return { r1: Math.min(a.r, b.r), r2: Math.max(a.r, b.r), c1: Math.min(a.c, b.c), c2: Math.max(a.c, b.c) };
+}
+function getTd(r, c) {
+  return document.querySelector(`#mainTbody td[data-row-index="${r}"][data-col-index="${c}"]`);
+}
+// 셀에 값이 "채워져 있는지" 판단 (Ctrl+방향키 이동 시 데이터 블록의 경계를 찾는 데 사용).
+// 숫자 필드는 0도 실제 값으로 취급한다 (편집모드 표시 로직과 동일한 기준).
+function cellHasValue(row, field) {
+  if (!row) return false;
+  const v = row[field];
+  if (NUMERIC_FIELDS.includes(field)) return v === 0 || !!v;
+  return v !== undefined && v !== null && String(v).trim() !== '';
+}
+// 엑셀의 Ctrl+방향키 동작: 현재 셀에서 dr/dc 방향으로 "데이터가 이어진 블록"의 끝까지 이동한 좌표를 반환.
+// (표 범위가 유한하므로 더 이상 이동할 데이터가 없으면 표의 가장자리 셀에서 멈춘다)
+function ctrlArrowTarget(r, c, dr, dc, maxR, maxC, profile) {
+  const within = (rr, cc) => rr >= 0 && rr <= maxR && cc >= 0 && cc <= maxC;
+  const has = (rr, cc) => cellHasValue(profile.rows[rr], FIELDS[cc].key);
+  if (!within(r + dr, c + dc)) return { r, c }; // 이미 표 가장자리라 더 이동할 곳이 없음
+  if (has(r, c)) {
+    let nr = r + dr, nc = c + dc;
+    if (!within(nr, nc)) return { r, c };
+    if (has(nr, nc)) {
+      // 다음 칸도 값이 있으면 값이 이어지는 마지막 칸까지 계속 이동
+      let pr = r, pc = c, cr = nr, cc = nc;
+      while (within(cr, cc) && has(cr, cc)) { pr = cr; pc = cc; cr += dr; cc += dc; }
+      return { r: pr, c: pc };
+    }
+    // 다음 칸이 비어있으면 그 다음 값이 있는 칸(또는 표 가장자리)까지 건너뛰기
+    let cr = nr, cc = nc;
+    while (within(cr, cc) && !has(cr, cc)) { cr += dr; cc += dc; }
+    if (within(cr, cc)) return { r: cr, c: cc };
+    return { r: cr - dr, c: cc - dc };
+  }
+  // 현재 칸이 비어있으면 값이 있는 다음 칸(또는 표 가장자리)까지 이동
+  let cr = r + dr, cc = c + dc;
+  while (within(cr, cc) && !has(cr, cc)) { cr += dr; cc += dc; }
+  if (within(cr, cc)) return { r: cr, c: cc };
+  return { r: cr - dr, c: cc - dc };
+}
+function clampSelectionToProfile(profile) {
+  if (!profile || profile.rows.length === 0) {
+    selection = null; anchorCell = null; activeCell = null;
+    return;
+  }
+  const maxR = profile.rows.length - 1;
+  const maxC = FIELDS.length - 1;
+  const clamp = (cell) => cell ? { r: Math.max(0, Math.min(cell.r, maxR)), c: Math.max(0, Math.min(cell.c, maxC)) } : null;
+  anchorCell = clamp(anchorCell);
+  activeCell = clamp(activeCell);
+  selection = (anchorCell && activeCell) ? normSel(anchorCell, activeCell) : null;
+}
+function clearSelectionVisual() {
+  document.querySelectorAll('#mainTbody td.cellSelected').forEach(td => {
+    td.classList.remove('cellSelected');
+    td.style.boxShadow = '';
+  });
+}
+function applySelectionVisual() {
+  clearSelectionVisual();
+  if (!selection) return;
+  const color = '#5b7fd6';
+  for (let r = selection.r1; r <= selection.r2; r++) {
+    for (let c = selection.c1; c <= selection.c2; c++) {
+      const td = getTd(r, c);
+      if (!td) continue;
+      td.classList.add('cellSelected');
+      // 선택 범위 바깥쪽 테두리만 그려서 여러 셀이 하나로 묶여 보이게 함
+      const shadows = [];
+      if (r === selection.r1) shadows.push(`inset 0 2px 0 0 ${color}`);
+      if (r === selection.r2) shadows.push(`inset 0 -2px 0 0 ${color}`);
+      if (c === selection.c1) shadows.push(`inset 2px 0 0 0 ${color}`);
+      if (c === selection.c2) shadows.push(`inset -2px 0 0 0 ${color}`);
+      td.style.boxShadow = shadows.join(', ');
+    }
+  }
+}
+
+// 복사/잘라내기한 범위를 엑셀처럼 바깥쪽 점선 테두리로 표시(움직이는 점선 효과는 CSS 애니메이션으로)
+function clearClipboardVisual() {
+  document.querySelectorAll('#mainTbody td.clipboardEdgeTop, #mainTbody td.clipboardEdgeBottom, #mainTbody td.clipboardEdgeLeft, #mainTbody td.clipboardEdgeRight')
+    .forEach(td => td.classList.remove('clipboardEdgeTop', 'clipboardEdgeBottom', 'clipboardEdgeLeft', 'clipboardEdgeRight', 'clipboardCut'));
+}
+function applyClipboardVisual() {
+  clearClipboardVisual();
+  if (!clipboardRange) return;
+  for (let r = clipboardRange.r1; r <= clipboardRange.r2; r++) {
+    for (let c = clipboardRange.c1; c <= clipboardRange.c2; c++) {
+      const td = getTd(r, c);
+      if (!td) continue;
+      if (r === clipboardRange.r1) td.classList.add('clipboardEdgeTop');
+      if (r === clipboardRange.r2) td.classList.add('clipboardEdgeBottom');
+      if (c === clipboardRange.c1) td.classList.add('clipboardEdgeLeft');
+      if (c === clipboardRange.c2) td.classList.add('clipboardEdgeRight');
+      if (clipboardMode === 'cut') td.classList.add('clipboardCut');
+    }
+  }
+}
+function setClipboardMark(range, mode) {
+  clipboardRange = range;
+  clipboardMode = mode;
+  applyClipboardVisual();
+}
+function clearClipboardMark() {
+  clipboardRange = null;
+  clipboardMode = null;
+  applyClipboardVisual();
+}
+
+function updateSelectionFromAnchorActive() {
+  if (!anchorCell || !activeCell) { selection = null; applySelectionVisual(); return; }
+  selection = normSel(anchorCell, activeCell);
+  applySelectionVisual();
+}
+function scrollCellIntoView(cell) {
+  const td = getTd(cell.r, cell.c);
+  if (td && td.scrollIntoView) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function focusProxy() {
+  document.getElementById('clipboardProxy').focus({ preventScroll: true });
+}
+
+function parseCellValue(field, raw) {
+  raw = (raw || '').trim();
+  if (NUMERIC_FIELDS.includes(field)) {
+    const cleaned = raw.replace(/,/g, '').trim();
+    const num = cleaned === '' ? 0 : Number(cleaned);
+    if (isNaN(num)) return { ok: false };
+    return { ok: true, value: num };
+  }
+  return { ok: true, value: raw };
+}
+function applyValueToRow(row, field, value) {
+  const changed = row[field] !== value;
+  row[field] = value;
+  if (field === 'invoiceNo' && changed) {
+    // 매칭 실패로 표시된 행을 사용자가 직접 수정하면 실패 표시를 해제한다
+    row.invoiceMatchFailed = false;
+    row.invoiceFailReason = '';
+  }
+  if (field === 'productName' && changed && String(value || '').trim()) {
+    row.productNameFailed = false;
+  }
+  if (['qty', 'price', 'combinedPack', 'extraFee', 'refundAmount'].includes(field)) {
+    row.settlementAmount = (Number(row.price) || 0) * (Number(row.qty) || 0)
+      + (Number(row.combinedPack) || 0)
+      + (Number(row.extraFee) || 0)
+      - (Number(row.refundAmount) || 0);
+  }
+  return changed;
+}
+
+function enterEditMode(td) {
+  if (!td) return;
+  editingCell = { r: Number(td.dataset.rowIndex), c: Number(td.dataset.colIndex) };
+  td.contentEditable = 'true';
+  td.focus();
+  const range = document.createRange();
+  range.selectNodeContents(td);
+  range.collapse(false);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+}
+function exitEditMode(td) {
+  if (td) td.contentEditable = 'false';
+  editingCell = null;
+}
+
+function commitCellEdit(td) {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  const rowIndex = Number(td.dataset.rowIndex);
+  const field = td.dataset.field;
+  const row = profile.rows[rowIndex];
+  if (!row) { exitEditMode(td); focusProxy(); return; }
+
+  const parsed = parseCellValue(field, td.textContent);
+  if (!parsed.ok) {
+    alert('숫자만 입력할 수 있습니다.');
+    td.textContent = (row[field] === 0 || row[field]) ? fmtNum(row[field]) : '';
+    exitEditMode(td);
+    focusProxy();
+    return;
+  }
+
+  const changed = applyValueToRow(row, field, parsed.value);
+  exitEditMode(td);
+
+  if (changed) {
+    saveState();
+    renderMainTable();
+  } else if (NUMERIC_FIELDS.includes(field)) {
+    td.textContent = (row[field] === 0 || row[field]) ? fmtNum(row[field]) : '';
+  }
+  focusProxy();
+}
+
+/* ---- 마우스로 범위 선택 ---- */
+document.getElementById('mainTbody').addEventListener('mousedown', (e) => {
+  if (editingCell) return; // 편집 중에는 드래그 선택 무시(blur가 먼저 처리됨)
+
+  // 좌측 행 머리글(#) 클릭/드래그 -> 엑셀처럼 해당 행 전체(모든 열)를 선택
+  const rowIdxTd = e.target.closest('td.rowIdx');
+  if (rowIdxTd && rowIdxTd.dataset.rowIndex !== undefined) {
+    const r = Number(rowIdxTd.dataset.rowIndex);
+    const maxC = FIELDS.length - 1;
+    if (e.shiftKey && anchorCell) {
+      activeCell = { r, c: maxC };
+    } else {
+      anchorCell = { r, c: 0 };
+      activeCell = { r, c: maxC };
+      isDragging = true;
+      isRowHeaderDrag = true;
+    }
+    updateSelectionFromAnchorActive();
+    focusProxy();
+    e.preventDefault();
+    return;
+  }
+
+  const td = e.target.closest('td.editableCell');
+  if (!td) return;
+  const r = Number(td.dataset.rowIndex), c = Number(td.dataset.colIndex);
+  if (e.shiftKey && anchorCell) {
+    activeCell = { r, c };
+  } else {
+    anchorCell = { r, c };
+    activeCell = { r, c };
+    isDragging = true;
+  }
+  updateSelectionFromAnchorActive();
+  focusProxy();
+  e.preventDefault();
+});
+document.getElementById('mainTbody').addEventListener('mouseover', (e) => {
+  if (!isDragging) return;
+  if (isRowHeaderDrag) {
+    const rowIdxTd = e.target.closest('td.rowIdx');
+    if (!rowIdxTd || rowIdxTd.dataset.rowIndex === undefined) return;
+    activeCell = { r: Number(rowIdxTd.dataset.rowIndex), c: FIELDS.length - 1 };
+    updateSelectionFromAnchorActive();
+    return;
+  }
+  const td = e.target.closest('td.editableCell');
+  if (!td) return;
+  activeCell = { r: Number(td.dataset.rowIndex), c: Number(td.dataset.colIndex) };
+  updateSelectionFromAnchorActive();
+});
+document.addEventListener('mouseup', () => { isDragging = false; isRowHeaderDrag = false; });
+
+// 숫자 입력창(input type=number) 위에서 마우스 휠을 굴리면 값이 의도치 않게 바뀌는 브라우저 기본 동작을 막는다.
+// 포커스만 즉시 해제해서 값 변경은 막되, 페이지 스크롤 자체는 그대로 되도록 한다(passive: true).
+document.addEventListener('wheel', () => {
+  const el = document.activeElement;
+  if (el && el.tagName === 'INPUT' && el.type === 'number') el.blur();
+}, { passive: true });
+
+document.getElementById('mainTbody').addEventListener('dblclick', (e) => {
+  const td = e.target.closest('td.editableCell');
+  if (!td) return;
+  const r = Number(td.dataset.rowIndex), c = Number(td.dataset.colIndex);
+  anchorCell = { r, c };
+  activeCell = { r, c };
+  updateSelectionFromAnchorActive();
+  enterEditMode(td);
+});
+
+document.getElementById('mainTbody').addEventListener('focusout', (e) => {
+  const td = e.target.closest('td.editableCell');
+  if (!td || editingCell === null) return;
+  commitCellEdit(td);
+});
+
+/* ---- 편집 중 키 입력: Enter(커밋), Ctrl+Enter(선택영역 전체 채우기), Esc(취소) ---- */
+document.getElementById('mainTbody').addEventListener('keydown', (e) => {
+  const td = e.target.closest('td.editableCell');
+  if (!td || editingCell === null) return;
+
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    const profile = getCurrentProfile();
+    if (!profile || !selection) { td.blur(); return; }
+    const field = td.dataset.field;
+    const parsed = parseCellValue(field, td.textContent);
+    if (!parsed.ok) { alert('숫자만 입력할 수 있습니다.'); return; }
+    let anyChanged = false;
+    for (let r = selection.r1; r <= selection.r2; r++) {
+      const row = profile.rows[r];
+      if (!row) continue;
+      if (!rowMatchesFilters(row, profile)) continue; // 필터로 숨겨진 행은 일괄 입력 대상에서 제외
+      if (applyValueToRow(row, field, parsed.value)) anyChanged = true;
+    }
+    exitEditMode(td);
+    if (anyChanged) { saveState(); renderMainTable(); }
+    focusProxy();
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    td.blur();
+  } else if (e.key === 'Escape') {
+    e.preventDefault();
+    const profile = getCurrentProfile();
+    const rowIndex = Number(td.dataset.rowIndex);
+    const row = profile && profile.rows[rowIndex];
+    const field = td.dataset.field;
+    if (row) {
+      td.textContent = NUMERIC_FIELDS.includes(field) ? ((row[field] === 0 || row[field]) ? fmtNum(row[field]) : '') : (row[field] || '');
+    }
+    exitEditMode(td);
+    focusProxy();
+  }
+});
+
+/* ---- 선택 모드(프록시 입력창)에서의 키보드 탐색/삭제/복사/붙여넣기 ---- */
+document.getElementById('mainTbody').addEventListener('click', (e) => {
+  // 편집 중이 아닐 때 셀을 클릭하면 포커스가 프록시로 가도록 보정
+  if (editingCell) return;
+  focusProxy();
+});
+
+const clipboardProxy = document.getElementById('clipboardProxy');
+
+clipboardProxy.addEventListener('keydown', (e) => {
+  const profile = getCurrentProfile();
+  if (!profile || profile.rows.length === 0) return;
+  if (!activeCell) {
+    anchorCell = { r: 0, c: 0 };
+    activeCell = { r: 0, c: 0 };
+    updateSelectionFromAnchorActive();
+  }
+  const maxR = profile.rows.length - 1;
+  const maxC = FIELDS.length - 1;
+  const clamp = (v, mx) => Math.max(0, Math.min(v, mx));
+
+  const dirMap = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+  if (dirMap[e.key]) {
+    e.preventDefault();
+    const [dr, dc] = dirMap[e.key];
+    const isCtrl = e.ctrlKey || e.metaKey;
+    // Ctrl+방향키: 데이터가 이어진 블록의 끝으로 이동 / Ctrl+Shift+방향키: 그 지점까지 선택영역 확장
+    const next = isCtrl
+      ? ctrlArrowTarget(activeCell.r, activeCell.c, dr, dc, maxR, maxC, profile)
+      : { r: clamp(activeCell.r + dr, maxR), c: clamp(activeCell.c + dc, maxC) };
+    activeCell = next;
+    if (!e.shiftKey) anchorCell = next;
+    updateSelectionFromAnchorActive();
+    scrollCellIntoView(next);
+    return;
+  }
+
+  if (e.key === 'Delete' || e.key === 'Backspace') {
+    e.preventDefault();
+    if (!selection) return;
+    let anyChanged = false;
+    for (let r = selection.r1; r <= selection.r2; r++) {
+      const row = profile.rows[r];
+      if (!row) continue;
+      if (!rowMatchesFilters(row, profile)) continue; // 필터로 숨겨진 행은 삭제 대상에서 제외
+      for (let c = selection.c1; c <= selection.c2; c++) {
+        const field = FIELDS[c].key;
+        const emptyVal = NUMERIC_FIELDS.includes(field) ? 0 : '';
+        if (applyValueToRow(row, field, emptyVal)) anyChanged = true;
+      }
+    }
+    if (anyChanged) { saveState(); renderMainTable(); focusProxy(); }
+    return;
+  }
+
+  if (e.key === 'Enter' || e.key === 'F2') {
+    e.preventDefault();
+    const td = getTd(activeCell.r, activeCell.c);
+    if (td) enterEditMode(td);
+    return;
+  }
+
+  if (e.key === 'Escape' && clipboardRange) {
+    e.preventDefault();
+    clearClipboardMark(); // 엑셀처럼 Esc를 누르면 복사/잘라내기 표시(점선 테두리)를 취소
+    return;
+  }
+});
+
+function buildClipboardText(range, profile) {
+  const lines = [];
+  for (let r = range.r1; r <= range.r2; r++) {
+    const row = profile.rows[r];
+    const cells = [];
+    for (let c = range.c1; c <= range.c2; c++) {
+      const field = FIELDS[c].key;
+      cells.push(row ? (row[field] ?? '') : '');
+    }
+    lines.push(cells.join('\t'));
+  }
+  return lines.join('\n');
+}
+
+clipboardProxy.addEventListener('copy', (e) => {
+  if (!selection) return;
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  e.clipboardData.setData('text/plain', buildClipboardText(selection, profile));
+  setClipboardMark({ ...selection }, 'copy'); // 엑셀처럼 복사한 범위를 점선 테두리로 표시
+  e.preventDefault();
+});
+
+// 엑셀의 "잘라내기": 클립보드에 값은 즉시 담아두되, 원본 셀은 붙여넣기가 완료된 시점에 비운다(점선 테두리는 빨간색으로 구분)
+clipboardProxy.addEventListener('cut', (e) => {
+  if (!selection) return;
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  e.clipboardData.setData('text/plain', buildClipboardText(selection, profile));
+  setClipboardMark({ ...selection }, 'cut');
+  e.preventDefault();
+});
+
+clipboardProxy.addEventListener('paste', (e) => {
+  if (!selection) return;
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  e.preventDefault();
+  const text = (e.clipboardData || window.clipboardData).getData('text/plain');
+  if (!text) return;
+
+  let grid = text.replace(/\r/g, '').split('\n');
+  while (grid.length > 1 && grid[grid.length - 1] === '') grid.pop();
+  const rowsData = grid.map(line => line.split('\t'));
+
+  const targetR1 = selection.r1, targetC1 = selection.c1;
+  const pastedRows = rowsData.length;
+  const pastedCols = Math.max(...rowsData.map(r => r.length));
+  const selRows = selection.r2 - selection.r1 + 1;
+  const selCols = selection.c2 - selection.c1 + 1;
+  const fillRows = selRows > pastedRows ? selRows : pastedRows;
+  const fillCols = selCols > pastedCols ? selCols : pastedCols;
+
+  let invalidCount = 0;
+  let lastR = targetR1, lastC = targetC1;
+  for (let dr = 0; dr < fillRows; dr++) {
+    const r = targetR1 + dr;
+    const row = profile.rows[r];
+    if (!row) continue;
+    const srcRow = rowsData[dr % pastedRows];
+    for (let dc = 0; dc < fillCols; dc++) {
+      const c = targetC1 + dc;
+      if (c >= FIELDS.length) continue;
+      const field = FIELDS[c].key;
+      const raw = srcRow[dc % pastedCols] ?? '';
+      const parsed = parseCellValue(field, raw);
+      if (!parsed.ok) { invalidCount++; continue; }
+      applyValueToRow(row, field, parsed.value);
+      lastR = r; lastC = c;
+    }
+  }
+
+  // 잘라내기 후 붙여넣기가 완료됐으면 원본 셀을 비운다(붙여넣기 대상과 겹치는 칸은 이미 새 값이 들어갔으므로 건드리지 않음)
+  if (clipboardMode === 'cut' && clipboardRange) {
+    const tR1 = targetR1, tR2 = targetR1 + fillRows - 1;
+    const tC1 = targetC1, tC2 = targetC1 + fillCols - 1;
+    for (let r = clipboardRange.r1; r <= clipboardRange.r2; r++) {
+      const row = profile.rows[r];
+      if (!row) continue;
+      for (let c = clipboardRange.c1; c <= clipboardRange.c2; c++) {
+        if (r >= tR1 && r <= tR2 && c >= tC1 && c <= tC2) continue;
+        const f = FIELDS[c];
+        if (!f) continue;
+        const emptyVal = NUMERIC_FIELDS.includes(f.key) ? 0 : '';
+        applyValueToRow(row, f.key, emptyVal);
+      }
+    }
+    clearClipboardMark();
+  }
+
+  saveState();
+  anchorCell = { r: targetR1, c: targetC1 };
+  activeCell = { r: Math.min(lastR, profile.rows.length - 1), c: Math.min(lastC, FIELDS.length - 1) };
+  updateSelectionFromAnchorActive();
+  renderMainTable();
+  focusProxy();
+  if (invalidCount > 0) alert(`숫자 형식이 아닌 값 ${invalidCount}개는 건너뛰었습니다.`);
+});
+
+/* ===================== 엑셀의 "복사/잘라낸 셀 삽입" 기능 (행 단위) ===================== */
+// 좌측 행 머리글을 드래그해서 행 전체를 복사/잘라낸 경우에만, 다른 행 위에서 우클릭하면
+// 덮어쓰지 않고 그 위치에 새 행으로 끼워넣는(삽입) 기능을 제공한다.
+function insertClipboardRows(atR) {
+  const profile = getCurrentProfile();
+  if (!profile || !clipboardRange) return;
+  const isFullRow = clipboardRange.c1 === 0 && clipboardRange.c2 === FIELDS.length - 1;
+  if (!isFullRow) { alert('행 전체를 복사하거나 잘라낸 경우에만 삽입할 수 있습니다.'); return; }
+  if (clipboardMode === 'cut' && atR >= clipboardRange.r1 && atR <= clipboardRange.r2 + 1) {
+    alert('잘라낸 행 범위 안에는 삽입할 수 없습니다.');
+    return;
+  }
+
+  const rowsToInsert = [];
+  for (let r = clipboardRange.r1; r <= clipboardRange.r2; r++) {
+    rowsToInsert.push({ ...profile.rows[r] });
+  }
+  profile.rows.splice(atR, 0, ...rowsToInsert);
+
+  if (clipboardMode === 'cut') {
+    let removeStart = clipboardRange.r1;
+    if (atR <= clipboardRange.r1) removeStart += rowsToInsert.length; // 삽입으로 인해 원본 위치가 뒤로 밀린 만큼 보정
+    profile.rows.splice(removeStart, rowsToInsert.length);
+    clearClipboardMark();
+  }
+
+  saveState();
+  anchorCell = { r: atR, c: 0 };
+  activeCell = { r: atR + rowsToInsert.length - 1, c: FIELDS.length - 1 };
+  updateSelectionFromAnchorActive();
+  renderMainTable();
+  focusProxy();
+}
+
+document.getElementById('mainTbody').addEventListener('contextmenu', (e) => {
+  const rowIdxTd = e.target.closest('td.rowIdx');
+  if (!rowIdxTd || rowIdxTd.dataset.rowIndex === undefined) return; // 행 머리글이 아니면 브라우저 기본 메뉴 유지
+  if (!clipboardRange || clipboardRange.c1 !== 0 || clipboardRange.c2 !== FIELDS.length - 1) return; // 삽입할 복사/잘라낸 행이 없으면 기본 메뉴 유지
+  e.preventDefault();
+  const r = Number(rowIdxTd.dataset.rowIndex);
+  const rowCount = clipboardRange.r2 - clipboardRange.r1 + 1;
+  const menu = document.getElementById('rowInsertMenu');
+  const item = document.getElementById('rowInsertMenuItem');
+  item.textContent = `${clipboardMode === 'cut' ? '잘라낸' : '복사한'} 행 ${rowCount}개 삽입`;
+  menu.dataset.targetRow = r;
+  menu.style.top = `${e.clientY}px`;
+  menu.style.left = `${e.clientX}px`;
+  menu.classList.remove('hidden');
+});
+document.getElementById('rowInsertMenuItem').addEventListener('click', () => {
+  const menu = document.getElementById('rowInsertMenu');
+  const r = Number(menu.dataset.targetRow);
+  menu.classList.add('hidden');
+  insertClipboardRows(r);
+});
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('rowInsertMenu');
+  if (!menu.classList.contains('hidden') && !menu.contains(e.target)) menu.classList.add('hidden');
+});
+document.addEventListener('scroll', () => {
+  document.getElementById('rowInsertMenu').classList.add('hidden');
+}, true);
+
+function computeSummary(profile) {
+  const byProduct = {};
+  profile.rows.forEach(r => {
+    if (!r.productName) return;
+    if (!byProduct[r.productName]) byProduct[r.productName] = { qty: 0, amount: 0 };
+    byProduct[r.productName].qty += Number(r.qty) || 0;
+    byProduct[r.productName].amount += (Number(r.price) || 0) * (Number(r.qty) || 0);
+  });
+  const totalCombinedPack = profile.rows.reduce((s, r) => s + (Number(r.combinedPack) || 0), 0);
+  const totalRefund = profile.rows.reduce((s, r) => s + (Number(r.refundAmount) || 0), 0);
+  const totalSettlement = profile.rows.reduce((s, r) => s + (Number(r.settlementAmount) || 0), 0);
+  return { byProduct, totalCombinedPack, totalRefund, totalSettlement };
+}
+
+function renderSummary(profile) {
+  const area = document.getElementById('summaryArea');
+  const emptyEl = document.getElementById('summaryEmptyState');
+  if (!profile || profile.rows.length === 0) {
+    area.classList.add('hidden');
+    if (emptyEl) emptyEl.classList.remove('hidden');
+    return;
+  }
+  if (emptyEl) emptyEl.classList.add('hidden');
+  area.classList.remove('hidden');
+  const { byProduct, totalCombinedPack, totalRefund, totalSettlement } = computeSummary(profile);
+
+  const tbody = document.getElementById('summaryProductTbody');
+  tbody.innerHTML = '';
+  Object.entries(byProduct).forEach(([name, v]) => {
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td');
+    tdName.textContent = name;
+    const tdQty = document.createElement('td');
+    tdQty.textContent = fmtNum(v.qty);
+    const tdAmount = document.createElement('td');
+    tdAmount.textContent = fmtNum(v.amount);
+    tr.appendChild(tdName);
+    tr.appendChild(tdQty);
+    tr.appendChild(tdAmount);
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('sumCombinedPack').textContent = fmtNum(totalCombinedPack) + '원';
+  document.getElementById('sumRefund').textContent = fmtNum(totalRefund) + '원';
+  document.getElementById('sumSettlement').textContent = fmtNum(totalSettlement) + '원';
+}
+
+function renderPriceTable() {
+  const tbody = document.getElementById('priceTbody');
+  tbody.innerHTML = '';
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  Object.keys(profile.prices).forEach(name => {
+    const tr = document.createElement('tr');
+
+    const tdName = document.createElement('td');
+    const inputName = document.createElement('input');
+    inputName.type = 'text';
+    inputName.value = name;
+    inputName.style.width = '100%';
+    inputName.addEventListener('change', () => {
+      const newName = inputName.value.trim();
+      if (!newName || newName === name) { inputName.value = name; return; }
+      const price = profile.prices[name];
+      delete profile.prices[name];
+      profile.prices[newName] = price;
+      saveState();
+      renderPriceTable();
+    });
+    tdName.appendChild(inputName);
+
+    const tdPrice = document.createElement('td');
+    const inputPrice = document.createElement('input');
+    inputPrice.type = 'number';
+    inputPrice.value = profile.prices[name];
+    inputPrice.addEventListener('change', () => {
+      profile.prices[name] = Number(inputPrice.value) || 0;
+      saveState();
+    });
+    tdPrice.appendChild(inputPrice);
+
+    const tdDel = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '삭제';
+    delBtn.className = 'delBtn';
+    delBtn.addEventListener('click', () => {
+      delete profile.prices[name];
+      saveState();
+      renderPriceTable();
+    });
+    tdDel.appendChild(delBtn);
+
+    tr.appendChild(tdName);
+    tr.appendChild(tdPrice);
+    tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderInvoiceUploadSummary() {
+  const area = document.getElementById('invoiceUploadSummary');
+  const profile = getCurrentProfile();
+  const log = profile ? (profile.invoiceUploadLog || []) : [];
+  if (!profile || log.length === 0) {
+    area.classList.add('hidden');
+    area.innerHTML = '';
+    return;
+  }
+  const totals = log.reduce((acc, e) => {
+    acc.total += e.total; acc.success += e.success; acc.fail += e.fail;
+    return acc;
+  }, { total: 0, success: 0, fail: 0 });
+  area.classList.remove('hidden');
+  area.innerHTML = `송장 ${fmtNum(totals.total)}건중 `
+    + `<span class="ouSuccess">${fmtNum(totals.success)}건 성공</span> `
+    + `<span class="ouFail">${fmtNum(totals.fail)}건 실패</span>`;
+}
+
+// 생산량계산기의 발주서 업로드 기록 표시 방식과 동일하게, 정산내역 표 하단에 송장 업로드 기록을 바로 보여준다.
+let invoiceUploadLogCollapsed = false; // 송장 업로드 기록 접기/펼치기 상태
+function renderInvoiceUploadLogArea() {
+  const area = document.getElementById('invoiceUploadLogArea');
+  const profile = getCurrentProfile();
+  const log = profile ? (profile.invoiceUploadLog || []) : [];
+  if (!profile || log.length === 0) {
+    area.classList.add('hidden');
+    area.innerHTML = '';
+    return;
+  }
+  area.classList.remove('hidden');
+  area.innerHTML = `<div class="sectionTitle uploadLogHeader"><span>업로드 기록</span><span class="uploadLogToggleBtn">${invoiceUploadLogCollapsed ? '▲ 펼치기' : '▼ 접기'}</span></div>`
+    + `<div class="uploadLogListInner${invoiceUploadLogCollapsed ? ' hidden' : ''}"></div>`;
+  area.querySelector('.uploadLogHeader').addEventListener('click', () => {
+    invoiceUploadLogCollapsed = !invoiceUploadLogCollapsed;
+    renderInvoiceUploadLogArea();
+  });
+  const listEl = area.querySelector('.uploadLogListInner');
+  // 최근 업로드가 위로 오도록 표시
+  [...log].reverse().forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'uploadLogLine';
+    div.innerHTML = `[${entry.fileName}] ${fmtNum(entry.total)}건중 `
+      + `<span class="okCount">${fmtNum(entry.success)}건 성공</span> `
+      + `<span class="failCount">${fmtNum(entry.fail)}건 실패</span>`;
+    listEl.appendChild(div);
+  });
+}
+
+document.getElementById('invoiceUploadSummary').addEventListener('dblclick', () => {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  renderInvoiceUploadLogModal(profile);
+  showModal('invoiceUploadLogModal');
+});
+document.getElementById('invoiceUploadLogClose').addEventListener('click', () => hideModal('invoiceUploadLogModal'));
+
+/* 송장 업로드 상품명 인식 실패 내역: "N건 실패" 배지를 클릭하면 실패 행 목록을 보여준다 */
+document.getElementById('invoiceUploadSummary').addEventListener('click', (e) => {
+  if (!e.target.closest('.ouFail')) return; // 실패 배지를 직접 클릭했을 때만 동작(더블클릭=업로드 내역과 구분)
+  e.stopPropagation();
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  renderInvoiceFailListModal(profile);
+  showModal('invoiceFailListModal');
+});
+document.getElementById('invoiceFailListClose').addEventListener('click', () => hideModal('invoiceFailListModal'));
+
+function renderInvoiceFailListModal(profile) {
+  const listEl = document.getElementById('invoiceFailList');
+  const emptyEl = document.getElementById('invoiceFailListEmpty');
+  listEl.innerHTML = '';
+
+  const excludedRows = profile.invoiceFailedRows || []; // 송장번호를 못 찾아 표에 아예 추가되지 못한 행("N건 실패" 집계의 실제 근거)
+  const productFailRows = [];
+  profile.rows.forEach((r, idx) => { if (r.productNameFailed) productFailRows.push({ r, idx }); });
+
+  if (excludedRows.length === 0 && productFailRows.length === 0) {
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+
+  if (excludedRows.length > 0) {
+    const title = document.createElement('div');
+    title.className = 'sectionTitle';
+    title.style.marginTop = '0';
+    title.textContent = `송장번호를 인식하지 못해 제외된 행 (${excludedRows.length}건)`;
+    listEl.appendChild(title);
+    [...excludedRows].reverse().forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'invoiceFailRow';
+      div.style.cursor = 'default';
+      div.innerHTML = `<div class="ofrMain">${f.reason || '인식 실패'}</div>`
+        + `<div class="ofrMeta">[${f.fileName}] ${f.sheetName ? f.sheetName + ' · ' : ''}${f.rowNum}행 · 상품명: ${f.productName || '(없음)'} · 수취인: ${f.recipientName || '(없음)'}</div>`;
+      listEl.appendChild(div);
+    });
+  }
+
+  if (productFailRows.length > 0) {
+    const title = document.createElement('div');
+    title.className = 'sectionTitle';
+    title.textContent = `상품명을 인식하지 못한 행 (${productFailRows.length}건, 정산내역 표에는 포함됨)`;
+    listEl.appendChild(title);
+    productFailRows.forEach(({ r, idx }) => {
+      const div = document.createElement('div');
+      div.className = 'invoiceFailRow';
+      div.innerHTML = `<div class="ofrMain">${idx + 1}행 · 상품명 인식 실패</div>`
+        + `<div class="ofrMeta">주문번호: ${r.orderNo || '(없음)'} · 수취인: ${r.recipientName || '(없음)'} (클릭하면 표에서 바로 이동)</div>`;
+      div.addEventListener('click', () => {
+        hideModal('invoiceFailListModal');
+        goToRow(idx);
+      });
+      listEl.appendChild(div);
+    });
+  }
+}
+
+// 정산내역 탭으로 전환한 뒤 지정한 행의 상품명 셀로 스크롤 + 선택
+function goToRow(rowIndex) {
+  document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sheet').forEach(s => s.classList.remove('active'));
+  document.querySelector('.tabBtn[data-tab="sheet1"]').classList.add('active');
+  document.getElementById('sheet1').classList.add('active');
+  const colIdx = FIELDS.findIndex(f => f.key === 'productName');
+  if (colIdx === -1) return;
+  anchorCell = { r: rowIndex, c: colIdx };
+  activeCell = { r: rowIndex, c: colIdx };
+  updateSelectionFromAnchorActive();
+  scrollCellIntoView(activeCell);
+  focusProxy();
+}
+
+function renderInvoiceUploadLogModal(profile) {
+  const listEl = document.getElementById('invoiceUploadLogList');
+  const emptyEl = document.getElementById('invoiceUploadLogEmpty');
+  const log = profile.invoiceUploadLog || [];
+  listEl.innerHTML = '';
+  if (log.length === 0) {
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+  [...log].reverse().forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'uploadLogLine';
+    const dateStr = entry.uploadedAt ? new Date(entry.uploadedAt).toLocaleString('ko-KR') : '';
+    div.innerHTML = `[${entry.fileName}] ${fmtNum(entry.total)}건중 `
+      + `<span class="okCount">${fmtNum(entry.success)}건 성공</span> `
+      + `<span class="failCount">${fmtNum(entry.fail)}건 실패</span>`
+      + (dateStr ? ` <span class="smallNote" style="display:inline;">(${dateStr})</span>` : '');
+    listEl.appendChild(div);
+  });
+}
+
+function renderAll() {
+  renderProfileSelect();
+  renderHeaders();
+  renderMainTable();
+  renderPriceTable();
+  renderInvoiceUploadSummary();
+  renderInvoiceUploadLogArea();
+}
+
+/* ===================== 탭 전환 ===================== */
+document.querySelectorAll('.tabBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tabBtn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.sheet').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ===================== 모달 공통 ===================== */
+function showModal(id) {
+  document.getElementById('overlay').classList.remove('hidden');
+  document.getElementById(id).classList.remove('hidden');
+}
+function hideModal(id) {
+  document.getElementById('overlay').classList.add('hidden');
+  document.getElementById(id).classList.add('hidden');
+}
+
+/* ===================== 프로필 생성/수정 ===================== */
+let editingProfileId = null; // null = 생성 모드, id = 수정 모드
+
+function preparePfSelects() {
+  ['pfOrderNo','pfRecipientName','pfRecipientPhone','pfProductName','pfQty','pfTrackingCol','pfExtraFeeCol','pfPickupDateCol'].forEach(id => {
+    buildColumnSelectOptions(document.getElementById(id));
+    const el = document.getElementById(id);
+    const blank = document.createElement('option');
+    blank.value=''; blank.textContent='(자동인식)';
+    el.insertBefore(blank, el.firstChild);
+    el.value = '';
+  });
+}
+
+document.getElementById('btnNewProfile').addEventListener('click', () => {
+  editingProfileId = null;
+  document.getElementById('profileModalTitle').textContent = '프로필 생성';
+  document.getElementById('pfName').value = '';
+  preparePfSelects();
+  document.getElementById('pfInvoiceStartRow').value = 2;
+  document.getElementById('pfCombineNameQty').checked = false;
+  showModal('profileModal');
+});
+
+document.getElementById('btnEditProfile').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('수정할 프로필이 없습니다. 먼저 프로필을 생성하세요.'); return; }
+  editingProfileId = profile.id;
+  document.getElementById('profileModalTitle').textContent = `프로필 수정 (${profile.name})`;
+  preparePfSelects();
+  document.getElementById('pfName').value = profile.name;
+  const im = profile.invoiceMap || {};
+  document.getElementById('pfOrderNo').value = im.orderNo || '';
+  document.getElementById('pfRecipientName').value = im.recipientName || '';
+  document.getElementById('pfRecipientPhone').value = im.recipientPhone || '';
+  document.getElementById('pfProductName').value = im.productName || '';
+  document.getElementById('pfQty').value = im.qty || '';
+  document.getElementById('pfTrackingCol').value = im.trackingCol || '';
+  document.getElementById('pfExtraFeeCol').value = im.extraFeeCol || '';
+  document.getElementById('pfPickupDateCol').value = im.pickupDateCol || '';
+  document.getElementById('pfInvoiceStartRow').value = profile.invoiceStartRow || 2;
+  document.getElementById('pfCombineNameQty').checked = !!profile.combineNameQty;
+  showModal('profileModal');
+});
+
+document.getElementById('pfCancel').addEventListener('click', () => hideModal('profileModal'));
+document.getElementById('pfSave').addEventListener('click', () => {
+  const name = document.getElementById('pfName').value.trim();
+  if (!name) { alert('프로필 이름을 입력하세요.'); return; }
+  const invoiceMap = {
+    trackingCol: document.getElementById('pfTrackingCol').value || '',
+    orderNo: document.getElementById('pfOrderNo').value || '',
+    pickupDateCol: document.getElementById('pfPickupDateCol').value || '',
+    recipientName: document.getElementById('pfRecipientName').value || '',
+    recipientPhone: document.getElementById('pfRecipientPhone').value || '',
+    productName: document.getElementById('pfProductName').value || '',
+    qty: document.getElementById('pfQty').value || '',
+    extraFeeCol: document.getElementById('pfExtraFeeCol').value || '',
+  };
+  const invoiceStartRow = Number(document.getElementById('pfInvoiceStartRow').value) || 2;
+  const combineNameQty = document.getElementById('pfCombineNameQty').checked;
+
+  if (editingProfileId) {
+    const profile = appState.profiles.find(p => p.id === editingProfileId);
+    if (!profile) { alert('수정할 프로필을 찾을 수 없습니다.'); hideModal('profileModal'); return; }
+    profile.name = name;
+    profile.invoiceMap = invoiceMap;
+    profile.invoiceStartRow = invoiceStartRow;
+    profile.combineNameQty = combineNameQty;
+    // prices, rows는 그대로 유지
+  } else {
+    const profile = {
+      id: uid(),
+      name,
+      invoiceMap,
+      invoiceStartRow,
+      combineNameQty,
+      prices: {},
+      rows: [],
+      invoiceUploadLog: [],
+      invoiceFailedRows: [],
+    };
+    appState.profiles.push(profile);
+    appState.currentProfileId = profile.id;
+  }
+  editingProfileId = null;
+  saveState();
+  renderAll();
+  hideModal('profileModal');
+});
+
+document.getElementById('profileSelect').addEventListener('change', (e) => {
+  appState.currentProfileId = e.target.value;
+  mainTableFilters = {}; // 다른 프로필로 전환하면 열 필터는 초기화(값 구성이 다르므로)
+  mainTableColorFilters = {};
+  clipboardRange = null; clipboardMode = null; // 프로필이 바뀌면 복사/잘라내기 표시도 의미가 없으므로 초기화
+  saveState();
+  renderAll();
+});
+
+/* ===================== 엑셀 읽기 유틸 ===================== */
+function readWorkbookAOA(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
+        resolve(aoa);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// 엑셀 날짜 일련번호(serial) 또는 문자열을 'YYYY-MM-DD' 형태로 정리
+function formatPickupDate(val) {
+  if (val === undefined || val === null || val === '') return '';
+  if (typeof val === 'number') {
+    try {
+      const d = XLSX.SSF.parse_date_code(val);
+      if (d) {
+        const y = d.y, m = String(d.m).padStart(2, '0'), day = String(d.d).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+      }
+    } catch (e) { /* 변환 실패 시 원래 값 사용 */ }
+  }
+  return String(val).trim();
+}
+
+// 워크북의 모든 시트를 [{name, aoa}, ...] 형태로 반환
+function readWorkbookAllSheets(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const data = new Uint8Array(e.target.result);
+        const wb = XLSX.read(data, { type: 'array' });
+        const sheets = wb.SheetNames.map(name => ({
+          name,
+          aoa: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: true, defval: '' }),
+        }));
+        resolve(sheets);
+      } catch (err) { reject(err); }
+    };
+    reader.onerror = reject;
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/* ===================== 송장 업로드 (송장 파일 하나로 정산내역 전체 생성) ===================== */
+document.getElementById('btnUploadInvoice').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  document.getElementById('invoiceFileInput').click();
+});
+document.getElementById('invoiceFileInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (files.length === 0) return;
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  profile.settled = false; // 새로 업로드된 행은 아직 정산 전이므로, 정산을 다시 누르기 전까지는 0원 강조를 하지 않는다
+
+  const im = profile.invoiceMap;
+  if (!profile.invoiceUploadLog) profile.invoiceUploadLog = []; // 이전 버전 프로필 호환
+  if (!profile.invoiceFailedRows) profile.invoiceFailedRows = []; // 이전 버전 프로필 호환
+
+  let totalAdded = 0;
+  let sheetCount = 0;
+  let detectFailSheets = 0;
+  const failedFiles = [];
+
+  for (const file of files) {
+    let fileTotal = 0;
+    let fileSuccess = 0;
+    try {
+      const sheets = await readWorkbookAllSheets(file);
+      sheets.forEach(({ name: sheetName, aoa }) => {
+        sheetCount++;
+        const startRow = profile.invoiceStartRow;
+
+        const idxTracking = resolveSmartColIdx(im.trackingCol, aoa, startRow, TRACKING_NO_KEYWORDS, null);
+        const idxOrderNo = resolveSmartColIdx(im.orderNo, aoa, startRow, ORDER_NO_KEYWORDS, null);
+        const idxPickupDate = resolveSmartColIdx(im.pickupDateCol, aoa, startRow, PICKUP_DATE_KEYWORDS, null);
+        const idxName = resolveSmartColIdx(im.recipientName, aoa, startRow, RECIPIENT_NAME_KEYWORDS, RECIPIENT_NAME_EXCLUDE);
+        const idxPhone = resolveSmartColIdx(im.recipientPhone, aoa, startRow, RECIPIENT_PHONE_KEYWORDS, RECIPIENT_PHONE_EXCLUDE);
+        const idxProduct = resolveProductNameColIdx(im.productName, aoa, startRow);
+        const idxQty = resolveSmartColIdx(im.qty, aoa, startRow, QTY_KEYWORDS, QTY_EXCLUDE);
+        const idxExtraFee = resolveSmartColIdx(im.extraFeeCol, aoa, startRow, EXTRA_FEE_KEYWORDS, null);
+
+        if (idxTracking === -1) {
+          detectFailSheets++;
+          // 송장번호 열을 못 찾으면 이 시트는 건너뛰지만, 몇 건이 실패로 처리됐는지와 각 행의 내용은 실패내역에 남겨둔다
+          for (let i = startRow - 1; i < aoa.length; i++) {
+            const row = aoa[i];
+            if (rowIsEmpty(row)) continue;
+            fileTotal++;
+            profile.invoiceFailedRows.push({
+              fileName: file.name,
+              sheetName,
+              rowNum: i + 1,
+              reason: '송장번호 열을 찾지 못했습니다.',
+              productName: idxProduct !== -1 ? String(row[idxProduct] ?? '').trim() : '',
+              recipientName: idxName !== -1 ? String(row[idxName] ?? '').trim() : '',
+              uploadedAt: Date.now(),
+            });
+          }
+          return;
+        }
+
+        for (let i = startRow - 1; i < aoa.length; i++) {
+          const row = aoa[i];
+          if (rowIsEmpty(row)) continue;
+          fileTotal++;
+          const trackingVal = String(row[idxTracking] ?? '').trim();
+          if (!trackingVal) {
+            // 송장번호 값이 비어있는 행은 실패로 집계하고 나중에 확인할 수 있도록 내용을 남겨둔다
+            profile.invoiceFailedRows.push({
+              fileName: file.name,
+              sheetName,
+              rowNum: i + 1,
+              reason: '송장번호 값이 비어있습니다.',
+              productName: idxProduct !== -1 ? String(row[idxProduct] ?? '').trim() : '',
+              recipientName: idxName !== -1 ? String(row[idxName] ?? '').trim() : '',
+              uploadedAt: Date.now(),
+            });
+            continue;
+          }
+          let productNameVal = idxProduct !== -1 ? String(row[idxProduct] ?? '').trim() : '';
+          let qtyVal = idxQty !== -1 ? (Number(row[idxQty]) || 0) : 0;
+          // 상품명 자동 합치기: "상품명" + "내품갯수"를 하나로 합쳐 단가표의 상품명(예: "칼국수 10인")과 일치시킨다.
+          // 합친 뒤에는 내품갯수를 1로 재설정해서 정산금액(단가×내품갯수) 계산이 박스 단위 단가와 맞도록 한다.
+          if (profile.combineNameQty && productNameVal && qtyVal > 0) {
+            productNameVal = `${productNameVal} ${qtyVal}인`;
+            qtyVal = 1;
+          }
+          profile.rows.push({
+            pickupDate: idxPickupDate !== -1 ? formatPickupDate(row[idxPickupDate]) : '',
+            orderNo: idxOrderNo !== -1 ? String(row[idxOrderNo] ?? '').trim() : '',
+            invoiceNo: trackingVal,
+            recipientName: idxName !== -1 ? String(row[idxName] ?? '').trim() : '',
+            recipientPhone: idxPhone !== -1 ? String(row[idxPhone] ?? '').trim() : '',
+            productName: productNameVal,
+            productNameFailed: !productNameVal, // 상품명 열을 못찾았거나 해당 셀이 비어있으면 인식 실패로 표시
+            qty: qtyVal,
+            price: 0,
+            combinedPack: 0,
+            extraFee: idxExtraFee !== -1 ? (Number(row[idxExtraFee]) || 0) : 0,
+            csContent: '',
+            refundAmount: 0,
+            settlementAmount: 0,
+            duplicate: false,
+          });
+          fileSuccess++;
+        }
+      });
+    } catch (err) {
+      console.error(err);
+      failedFiles.push(file.name);
+      continue;
+    }
+
+    totalAdded += fileSuccess;
+    profile.invoiceUploadLog.push({
+      id: nextInvoiceLogId(),
+      fileName: file.name,
+      total: fileTotal,
+      success: fileSuccess,
+      fail: fileTotal - fileSuccess,
+      uploadedAt: Date.now(),
+    });
+  }
+
+  saveState();
+  renderMainTable();
+  renderInvoiceUploadSummary();
+  renderInvoiceUploadLogArea();
+
+  let msg = `송장 ${files.length}개 파일(총 ${sheetCount}개 시트)에서 총 ${totalAdded}건이 추가되었습니다. (기존 내역 유지)`;
+  if (detectFailSheets > 0) msg += `\n송장번호 열을 찾지 못해 건너뛴 시트 ${detectFailSheets}개 (프로필 설정에서 열을 직접 지정해보세요).`;
+  if (failedFiles.length > 0) msg += `\n읽기 실패한 파일: ${failedFiles.join(', ')}`;
+  alert(msg);
+});
+
+/* ===================== 단가입력 ===================== */
+function openPriceInputModal() {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  const seen = new Set();
+  const missing = [];
+  profile.rows.forEach(r => {
+    if (r.productName && !seen.has(r.productName)) {
+      seen.add(r.productName);
+      if (profile.prices[r.productName] === undefined) missing.push(r.productName);
+    }
+  });
+  missing.sort((a, b) => a.localeCompare(b, 'ko')); // 상품명 텍스트 오름차순 정렬
+  const list = document.getElementById('priceModalList');
+  const emptyMsg = document.getElementById('priceModalEmpty');
+  list.innerHTML = '';
+  if (missing.length === 0) {
+    emptyMsg.classList.remove('hidden');
+  } else {
+    emptyMsg.classList.add('hidden');
+    missing.forEach(name => {
+      const row = document.createElement('div');
+      row.className = 'priceRow';
+      const span = document.createElement('span');
+      span.textContent = name;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.placeholder = '단가';
+      input.dataset.product = name;
+      row.appendChild(span);
+      row.appendChild(input);
+      list.appendChild(row);
+    });
+  }
+  showModal('priceModal');
+}
+let priceModalFromEvent = false; // 행사가 버튼을 거쳐 열린 단가입력인지 여부(true면 저장 시 자동 정산)
+document.getElementById('btnPrice').addEventListener('click', () => {
+  priceModalFromEvent = false;
+  openPriceInputModal();
+});
+document.getElementById('priceCancel').addEventListener('click', () => { priceModalFromEvent = false; hideModal('priceModal'); });
+document.getElementById('priceSave').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  const inputs = document.querySelectorAll('#priceModalList input');
+  let count = 0;
+  inputs.forEach(inp => {
+    const val = inp.value;
+    if (val !== '' && !isNaN(Number(val))) {
+      profile.prices[inp.dataset.product] = Number(val);
+      count++;
+    }
+  });
+  saveState();
+  renderPriceTable();
+  hideModal('priceModal');
+  if (count > 0) {
+    if (priceModalFromEvent) {
+      settleProfile(profile);
+      saveState();
+      renderMainTable();
+      alert(`${count}개 상품 단가가 저장되고 정산이 자동으로 반영되었습니다.`);
+    } else {
+      alert(`${count}개 상품 단가가 저장되었습니다. [정산] 버튼을 눌러 반영하세요.`);
+    }
+  }
+  priceModalFromEvent = false;
+});
+
+/* ===================== 정산 ===================== */
+document.getElementById('btnSettle').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  settleProfile(profile);
+  saveState();
+  renderMainTable();
+  alert('정산이 완료되었습니다.');
+});
+
+function settleProfile(profile) {
+  profile.settled = true; // 정산을 한 번이라도 실행했음을 표시 (상품금액 0원 셀 강조는 정산 이후에만 적용)
+  // 1) 송장번호 그룹핑 -> 합포장/중복표시
+  const groups = {};
+  profile.rows.forEach(r => {
+    r.duplicate = false;
+    r.combinedPack = 0;
+    if (r.invoiceNo) {
+      (groups[r.invoiceNo] = groups[r.invoiceNo] || []).push(r);
+    }
+  });
+  Object.values(groups).forEach(group => {
+    if (group.length > 1) {
+      group.forEach(r => { r.duplicate = true; });
+      group[0].combinedPack = -1000; // 같은 송장번호로 여러 건이 묶인 경우, 최초 1회만
+    }
+  });
+  // 내품갯수(qty)가 2개 이상인 건도 한 박스에 여러 개를 담아 보낸 것이므로 합포장으로 처리한다.
+  // (위에서 이미 송장번호 그룹으로 -1000 처리된 행은 중복 적용하지 않는다)
+  profile.rows.forEach(r => {
+    if ((Number(r.qty) || 0) >= 2 && r.combinedPack === 0) {
+      r.combinedPack = -1000;
+    }
+  });
+
+  // 2) 단가 매칭 + 정산금액 계산
+  profile.rows.forEach(r => {
+    if (r.productName && profile.prices[r.productName] !== undefined) {
+      r.price = profile.prices[r.productName];
+    }
+    r.settlementAmount = (Number(r.price) || 0) * (Number(r.qty) || 0)
+      + (Number(r.combinedPack) || 0)
+      + (Number(r.extraFee) || 0)
+      - (Number(r.refundAmount) || 0);
+  });
+}
+
+/* ===================== CS ===================== */
+let csSelectedRow = null;
+document.getElementById('btnCS').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  document.getElementById('csSearchInput').value = '';
+  document.getElementById('csResults').innerHTML = '';
+  document.getElementById('csApplyArea').classList.add('hidden');
+  document.getElementById('csReason').value = '';
+  document.getElementById('csAmount').value = '';
+  csSelectedRow = null;
+  showModal('csModal');
+});
+document.getElementById('csCancel').addEventListener('click', () => hideModal('csModal'));
+document.getElementById('csSearchInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('csSearchBtn').click();
+  }
+});
+document.getElementById('csSearchBtn').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) return;
+  const q = document.getElementById('csSearchInput').value.trim();
+  const resultsDiv = document.getElementById('csResults');
+  resultsDiv.innerHTML = '';
+  csSelectedRow = null;
+  document.getElementById('csApplyArea').classList.add('hidden');
+  if (!q) return;
+  const matches = profile.rows.filter(r =>
+    (r.invoiceNo && r.invoiceNo.includes(q)) ||
+    (r.recipientName && r.recipientName.includes(q)) ||
+    (r.recipientPhone && r.recipientPhone.includes(q))
+  );
+  if (matches.length === 0) {
+    resultsDiv.innerHTML = '<div class="smallNote">검색 결과가 없습니다.</div>';
+    return;
+  }
+  matches.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'csResultRow';
+    div.textContent = `송장:${r.invoiceNo || '-'} / 수취인:${r.recipientName} / 전화:${r.recipientPhone} / 상품:${r.productName} / 현재정산금액:${fmtNum(r.settlementAmount)}`;
+    div.addEventListener('click', () => {
+      document.querySelectorAll('.csResultRow').forEach(el => el.classList.remove('selected'));
+      div.classList.add('selected');
+      csSelectedRow = r;
+      document.getElementById('csApplyArea').classList.remove('hidden');
+    });
+    resultsDiv.appendChild(div);
+  });
+});
+document.getElementById('csApply').addEventListener('click', () => {
+  if (!csSelectedRow) { alert('처리할 건을 검색 후 선택하세요.'); return; }
+  const reason = document.getElementById('csReason').value.trim();
+  const amount = Number(document.getElementById('csAmount').value) || 0;
+  if (!reason) { alert('사유를 입력하세요.'); return; }
+  csSelectedRow.csContent = csSelectedRow.csContent ? (csSelectedRow.csContent + '; ' + reason) : reason;
+  csSelectedRow.refundAmount = (Number(csSelectedRow.refundAmount) || 0) + amount;
+  csSelectedRow.settlementAmount = (Number(csSelectedRow.price) || 0) * (Number(csSelectedRow.qty) || 0)
+    + (Number(csSelectedRow.combinedPack) || 0)
+    + (Number(csSelectedRow.extraFee) || 0)
+    - (Number(csSelectedRow.refundAmount) || 0);
+  saveState();
+  renderMainTable();
+  hideModal('csModal');
+});
+
+/* ===================== 행사가: 상품명에 [행사] 접두어 추가 ===================== */
+document.getElementById('btnEventPrice').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  if (!selection) { alert('상품명 열에서 적용할 셀을 드래그로 선택한 후 다시 눌러주세요.'); return; }
+  const productColIdx = FIELDS.findIndex(f => f.key === 'productName');
+  if (selection.c1 > productColIdx || selection.c2 < productColIdx) {
+    alert('상품명 열의 셀을 선택한 후 다시 눌러주세요.');
+    return;
+  }
+  const PREFIX = '[행사]';
+  let addedCount = 0;
+  let revertedCount = 0;
+  for (let r = selection.r1; r <= selection.r2; r++) {
+    const row = profile.rows[r];
+    if (!row) continue;
+    if (!rowMatchesFilters(row, profile)) continue; // 필터로 숨겨진 행은 행사가 적용 대상에서 제외
+    const name = String(row.productName || '').trim();
+    if (!name) continue;
+    if (name.startsWith(PREFIX)) {
+      // 이미 행사가가 적용된 셀 -> 원래 상품명으로 되돌린다 (토글)
+      row.productName = name.slice(PREFIX.length);
+      revertedCount++;
+    } else {
+      row.productName = PREFIX + name;
+      addedCount++;
+      // profile.prices에는 아직 넣지 않는다 -> 단가입력 모달에서 "미입력 상품"으로 잡혀 바로 입력하게 됨(중복 항목 생성 없음)
+    }
+  }
+  if (addedCount === 0 && revertedCount === 0) {
+    alert('선택한 범위에 적용할 상품명이 없습니다.');
+    return;
+  }
+  saveState();
+  renderMainTable();
+
+  if (revertedCount > 0) {
+    // 되돌린 상품은 원래 이름의 기존 단가를 그대로 다시 사용하므로 즉시 정산에 반영한다
+    settleProfile(profile);
+    saveState();
+    renderMainTable();
+  }
+
+  if (addedCount > 0) {
+    let msg = `${addedCount}개 상품명에 [행사]가 추가되었습니다.`;
+    if (revertedCount > 0) msg += ` ${revertedCount}개는 원래 상품명으로 되돌리고 정산에 반영했습니다.`;
+    alert(msg);
+    priceModalFromEvent = true;
+    openPriceInputModal(); // 새로 생긴 [행사] 상품의 단가를 바로 입력하도록 단가입력을 이어서 실행(저장 시 자동 정산)
+  } else {
+    alert(`${revertedCount}개 상품명을 원래대로 되돌리고 정산에 반영했습니다.`);
+  }
+});
+
+/* ===================== 단가 시트: 상품 추가 ===================== */
+document.getElementById('btnAddPriceRow').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  let base = '신규상품';
+  let name = base, n = 1;
+  while (profile.prices[name] !== undefined) { name = base + n; n++; }
+  profile.prices[name] = 0;
+  saveState();
+  renderPriceTable();
+});
+
+document.getElementById('btnClearPrices').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  const count = Object.keys(profile.prices).length;
+  if (count === 0) { alert('삭제할 단가 정보가 없습니다.'); return; }
+  const ok = confirm(`[${profile.name}] 프로필의 단가 ${count}개를 모두 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`);
+  if (!ok) return;
+  profile.prices = {};
+  saveState();
+  renderPriceTable();
+  alert('단가가 모두 삭제되었습니다.');
+});
+
+/* ===================== 엑셀 내보내기 ===================== */
+function sanitizeSheetName(name) {
+  // 엑셀 시트명 제한: \ / ? * [ ] : 사용 불가, 31자 이내
+  let s = String(name || '').replace(/[\\\/\?\*\[\]:]/g, '');
+  if (s.length > 31) s = s.slice(0, 31);
+  return s || '정산서';
+}
+
+function getPickupDateRange(profile) {
+  const dates = profile.rows
+    .map(r => r.pickupDate)
+    .filter(d => d && /^\d{4}-\d{2}-\d{2}$/.test(d));
+  if (dates.length === 0) return null;
+  dates.sort();
+  return { start: dates[0], end: dates[dates.length - 1] };
+}
+
+function toMMDD(dateStr) {
+  const parts = dateStr.split('-');
+  return parts[1] + parts[2];
+}
+
+// 정산서(시트1) 워크시트를 스타일과 함께 생성
+function buildSummarySheet(profile) {
+  const COLS = 7; // 상품명 ~ 정산금액 합계
+  const ROW_OFFSET = 2; // 위쪽 여백 2행
+  const COL_OFFSET = 1; // 왼쪽 여백 1열(A열 비움)
+
+  const HEADER_FILL = { patternType: 'solid', fgColor: { rgb: '2B3A55' } };
+  const HEADER_FONT = { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 };
+  const THIN_BORDER = { style: 'thin', color: { rgb: 'B9C0CB' } };
+  const CELL_BORDER = { top: THIN_BORDER, bottom: THIN_BORDER, left: THIN_BORDER, right: THIN_BORDER };
+  const TITLE_FONT = { bold: true, sz: 16, color: { rgb: '2B3A55' } };
+  const PERIOD_FONT = { bold: true, sz: 11, color: { rgb: '555555' } };
+  const TOTAL_FILL = { patternType: 'solid', fgColor: { rgb: 'FFF3CD' } };
+  const TOTAL_FONT = { bold: true, sz: 12, color: { rgb: '2B3A55' } };
+
+  const range = getPickupDateRange(profile);
+  const periodText = range ? `${range.start} ~ ${range.end}` : '데이터 없음';
+
+  // 상품별 집계
+  const grouped = {};
+  profile.rows.forEach(r => {
+    if (!r.productName) return;
+    if (!grouped[r.productName]) {
+      grouped[r.productName] = { qty: 0, amount: 0, combinedPack: 0, refund: 0, settlement: 0, csList: [] };
+    }
+    const g = grouped[r.productName];
+    g.qty += Number(r.qty) || 0;
+    g.amount += (Number(r.price) || 0) * (Number(r.qty) || 0);
+    g.combinedPack += Number(r.combinedPack) || 0;
+    g.refund += Number(r.refundAmount) || 0;
+    g.settlement += Number(r.settlementAmount) || 0;
+    if (r.csContent) g.csList.push(`${r.recipientName || '이름없음'}/${r.csContent}`);
+  });
+  const totalSettlement = profile.rows.reduce((s, r) => s + (Number(r.settlementAmount) || 0), 0);
+
+  const block = [];
+  block.push([{ v: `${profile.name}정산서`, t: 's', s: { font: TITLE_FONT, alignment: { horizontal: 'center', vertical: 'center' } } }]);
+  block.push([{ v: `정산기간(집화예정일자 기준) ${periodText}`, t: 's', s: { font: PERIOD_FONT, alignment: { horizontal: 'center' } } }]);
+  block.push([]); // 여백 행
+  block.push(['상품명', '총 갯수', '상품금액 합계', '합포장금액 합계', 'CS내역', '환불금액 합계', '정산금액 합계'].map(label => ({
+    v: label, t: 's',
+    s: { font: HEADER_FONT, fill: HEADER_FILL, alignment: { horizontal: 'center', vertical: 'center' }, border: CELL_BORDER },
+  })));
+  const NUM_FMT = '#,##0';
+  Object.entries(grouped).forEach(([name, g]) => {
+    block.push([
+      { v: name, t: 's', s: { border: CELL_BORDER, alignment: { horizontal: 'left', vertical: 'center' } } },
+      { v: g.qty, t: 'n', z: NUM_FMT, s: { border: CELL_BORDER, alignment: { horizontal: 'center', vertical: 'center' } } },
+      { v: g.amount, t: 'n', z: NUM_FMT, s: { border: CELL_BORDER, alignment: { horizontal: 'right', vertical: 'center' } } },
+      { v: g.combinedPack, t: 'n', z: NUM_FMT, s: { border: CELL_BORDER, alignment: { horizontal: 'right', vertical: 'center' } } },
+      { v: g.csList.join('; '), t: 's', s: { border: CELL_BORDER, alignment: { horizontal: 'left', vertical: 'center', wrapText: true } } },
+      { v: g.refund, t: 'n', z: NUM_FMT, s: { border: CELL_BORDER, alignment: { horizontal: 'right', vertical: 'center' } } },
+      { v: g.settlement, t: 'n', z: NUM_FMT, s: { border: CELL_BORDER, alignment: { horizontal: 'right', vertical: 'center' } } },
+    ]);
+  });
+  block.push([]); // 여백 행
+  block.push([
+    { v: '총 정산금액', t: 's', s: { font: TOTAL_FONT, fill: TOTAL_FILL, border: CELL_BORDER, alignment: { horizontal: 'center', vertical: 'center' } } },
+    { v: '', t: 's', s: { fill: TOTAL_FILL, border: CELL_BORDER } },
+    { v: '', t: 's', s: { fill: TOTAL_FILL, border: CELL_BORDER } },
+    { v: '', t: 's', s: { fill: TOTAL_FILL, border: CELL_BORDER } },
+    { v: '', t: 's', s: { fill: TOTAL_FILL, border: CELL_BORDER } },
+    { v: '', t: 's', s: { fill: TOTAL_FILL, border: CELL_BORDER } },
+    { v: totalSettlement, t: 'n', z: NUM_FMT, s: { font: TOTAL_FONT, fill: TOTAL_FILL, border: CELL_BORDER, alignment: { horizontal: 'right', vertical: 'center' } } },
+  ]);
+
+  const ws = {};
+  XLSX.utils.sheet_add_aoa(ws, block, { origin: { r: ROW_OFFSET, c: COL_OFFSET } });
+
+  const titleRow = ROW_OFFSET;
+  const periodRow = ROW_OFFSET + 1;
+  ws['!merges'] = [
+    { s: { r: titleRow, c: COL_OFFSET }, e: { r: titleRow, c: COL_OFFSET + COLS - 1 } },
+    { s: { r: periodRow, c: COL_OFFSET }, e: { r: periodRow, c: COL_OFFSET + COLS - 1 } },
+  ];
+
+  ws['!cols'] = [
+    { wch: 3 },  // A 여백
+    { wch: 20 }, // 상품명
+    { wch: 10 }, // 총 갯수
+    { wch: 14 }, // 상품금액 합계
+    { wch: 14 }, // 합포장금액 합계
+    { wch: 30 }, // CS내역
+    { wch: 14 }, // 환불금액 합계
+    { wch: 14 }, // 정산금액 합계
+  ];
+  ws['!rows'] = [];
+  ws['!rows'][titleRow] = { hpt: 26 };
+
+  return ws;
+}
+
+// 가능하면 저장 위치를 사용자가 직접 고를 수 있게 하고(파일 시스템 접근 API),
+// 지원하지 않는 브라우저에서는 기본 다운로드 방식으로 대체
+async function saveWorkbookWithPicker(wb, suggestedName) {
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  const blob = new Blob([wbout], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
+
+  if (window.showSaveFilePicker) {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{
+          description: 'Excel 파일',
+          accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'] },
+        }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err) {
+      if (err && err.name === 'AbortError') return; // 사용자가 저장을 취소함
+      console.error(err);
+      // 실패 시 아래 기본 다운로드로 대체
+    }
+  }
+
+  // 저장 위치 선택을 지원하지 않는 브라우저: 기본 다운로드 폴더로 저장
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = suggestedName;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+document.getElementById('btnExport').addEventListener('click', async () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+
+  const ws1 = buildSummarySheet(profile);
+
+  const header = FIELDS.map(f => f.label);
+  const dataRows = profile.rows.map(r => FIELDS.map(f => r[f.key]));
+  const ws2 = XLSX.utils.aoa_to_sheet([header, ...dataRows]);
+  // 숫자 필드 열에 천단위 콤마 서식 적용
+  const numericColIdx = FIELDS.reduce((arr, f, idx) => {
+    if (NUMERIC_FIELDS.includes(f.key)) arr.push(idx);
+    return arr;
+  }, []);
+  for (let r = 0; r < dataRows.length; r++) {
+    numericColIdx.forEach(c => {
+      const cellRef = XLSX.utils.encode_cell({ r: r + 1, c });
+      const cell = ws2[cellRef];
+      if (cell && cell.t === 'n') cell.z = '#,##0';
+    });
+  }
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws1, sanitizeSheetName(`${profile.name}정산서`));
+  XLSX.utils.book_append_sheet(wb, ws2, '정산내역');
+
+  const range = getPickupDateRange(profile);
+  const datePrefix = range ? `${toMMDD(range.start)}-${toMMDD(range.end)} ` : '';
+  const fileName = `${datePrefix}[${profile.name}] 정산서.xlsx`;
+
+  await saveWorkbookWithPicker(wb, fileName);
+});
+
+/* ===================== 업로드내역 초기화 / 프로필삭제 ===================== */
+document.getElementById('btnResetUpload').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('먼저 프로필을 생성/선택하세요.'); return; }
+  const ok = confirm(`[${profile.name}] 프로필의 업로드된 송장 내역을 모두 초기화합니다.\n단가 시트는 유지됩니다. 계속할까요?`);
+  if (!ok) return;
+  profile.rows = [];
+  profile.invoiceUploadLog = [];
+  profile.invoiceFailedRows = [];
+  saveState();
+  renderMainTable();
+  renderInvoiceUploadSummary();
+  renderInvoiceUploadLogArea();
+  alert('업로드 내역이 초기화되었습니다.');
+});
+
+document.getElementById('btnDeleteProfile').addEventListener('click', () => {
+  const profile = getCurrentProfile();
+  if (!profile) { alert('삭제할 프로필이 없습니다.'); return; }
+  const ok = confirm(`[${profile.name}] 프로필을 삭제합니다. 정산내역과 단가 정보가 모두 사라지며 되돌릴 수 없습니다. 계속할까요?`);
+  if (!ok) return;
+  appState.profiles = appState.profiles.filter(p => p.id !== profile.id);
+  appState.currentProfileId = appState.profiles.length > 0 ? appState.profiles[0].id : null;
+  saveState();
+  renderAll();
+  alert('프로필이 삭제되었습니다.');
+});
+
+/* ===================== 화면 전환 (자동정산기 / 생산량계산기 탭) ===================== */
+document.querySelectorAll('.appTabBtn').forEach(btn => {
+  btn.addEventListener('click', () => switchApp(btn.dataset.app));
+});
+
+function switchApp(appName) {
+  document.getElementById('appSettlement').classList.toggle('active', appName === 'settlement');
+  document.getElementById('appProduction').classList.toggle('active', appName === 'production');
+  document.getElementById('appInbound').classList.toggle('active', appName === 'inbound');
+  document.querySelectorAll('.appTabBtn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.app === appName);
+  });
+  if (appName === 'production') renderProduction();
+  if (appName === 'inbound') renderInbound();
+}
+
+/* ===================== 생산량계산기 ===================== */
+// 상품군별 1회 생산량(인분) - 순서 중요: 더 구체적인 이름(공주칼국수)을 먼저 검사해야
+// "칼국수"라는 일반 키워드에 잘못 걸리지 않음
+const PRODUCTION_CATEGORIES = [
+  { key: '공주칼국수', batch: 600 },
+  { key: '우동', batch: 600 },
+  { key: '콩국수', batch: 500 },
+  { key: '칼국수', batch: 500 },
+  { key: '소바', batch: 700 },
+];
+
+// "소바10인", "칼국수 7인" 같은 상품명에서 기본 상품명과 1세트당 인분 수를 추출
+function parseProductServing(name) {
+  let s = String(name || '').trim();
+  s = s.replace(/\([^)]*\)\s*$/, '').trim(); // "소바 10인분(소바5+비소5인)" 같은 괄호 설명은 제거하고 앞의 숫자만 사용
+  // "10인" 또는 "10인분" 형식을 인식하되, 문자열 끝에 있지 않아도(예: "칼국수 10인분 (면200g+소스35g)*10") 인식하도록 끝 고정을 두지 않음
+  const m = s.match(/^(.+?)\s*(\d+)\s*인분?/);
+  if (!m) return null;
+  const base = m[1].trim();
+  const perSet = Number(m[2]);
+  if (!base || !perSet) return null;
+  return { base, perSet };
+}
+// 자동 인식(정규식)에 실패한 상품명은 사용자가 [발주서업데이트]로 직접 지정한 값(prodOverrides)이 있는지 먼저 확인
+function resolveProductServing(name) {
+  const override = appState.prodOverrides[name];
+  if (override && override.base && override.perSet) return override;
+  return parseProductServing(name);
+}
+function categorizeProduct(base) {
+  for (const cat of PRODUCTION_CATEGORIES) {
+    if (base.includes(cat.key)) return cat.key;
+  }
+  return null;
+}
+
+function computeProductionSummary(rows) {
+  const lineMap = {};   // "base__perSet" -> { base, perSet, sets, viaOverride }
+  const baseTotals = {}; // base -> 총 인분
+  let unparsedCount = 0;
+
+  rows.forEach(r => {
+    const isOverride = !!appState.prodOverrides[r.productName]; // 발주서업데이트로 수동 매핑된 상품명인지
+    const parsed = resolveProductServing(r.productName);
+    const qty = Number(r.qty) || 0;
+    if (!parsed) { unparsedCount++; return; }
+    const key = `${parsed.base}__${parsed.perSet}`;
+    if (!lineMap[key]) lineMap[key] = { base: parsed.base, perSet: parsed.perSet, sets: 0, viaOverride: false };
+    lineMap[key].sets += qty;
+    if (isOverride) lineMap[key].viaOverride = true;
+    baseTotals[parsed.base] = (baseTotals[parsed.base] || 0) + parsed.perSet * qty;
+  });
+
+  const categoryServings = {}; // 공주칼국수/우동/콩국수/칼국수/소바 -> 총 인분
+  let otherServings = 0; // 5개 카테고리 어디에도 속하지 않는 상품의 총 인분
+  Object.entries(baseTotals).forEach(([base, servings]) => {
+    const cat = categorizeProduct(base);
+    if (!cat) { otherServings += servings; return; }
+    categoryServings[cat] = (categoryServings[cat] || 0) + servings;
+  });
+
+  const runsOf = {};
+  PRODUCTION_CATEGORIES.forEach(({ key, batch }) => {
+    runsOf[key] = (categoryServings[key] || 0) / batch;
+  });
+
+  const sobaRuns = runsOf['소바'] || 0;
+  const kalguksuRuns = (runsOf['칼국수'] || 0) + (runsOf['우동'] || 0) + (runsOf['공주칼국수'] || 0) + (runsOf['콩국수'] || 0);
+
+  return { lineMap, baseTotals, categoryServings, otherServings, sobaRuns, kalguksuRuns, unparsedCount };
+}
+
+// 파일 선택 필터(전체 / 특정 업로드 기록 / 직접입력)에 맞춰 발주내역을 걸러낸다
+function getFilteredProdRows() {
+  if (!prodFileFilterId) return appState.prodRows;
+  if (prodFileFilterId === PROD_MANUAL_FILTER) return appState.prodRows.filter(r => r.manualEntry);
+  if (prodFileFilterId === PROD_RESTORED_FILTER) return appState.prodRows.filter(r => r.restoredEntry);
+  return appState.prodRows.filter(r => r.logId === prodFileFilterId);
+}
+
+// 인식현황탭 오른쪽의 파일 선택 드롭다운을 업로드 순서대로 채운다
+// (생산량입력으로 추가한 항목이 있으면 "직접입력", [제거됨]에서 복원한 항목이 있으면 "복원됨"도 추가)
+function buildProdFileFilterOptions() {
+  const sel = document.getElementById('prodFileFilter');
+  const prevValue = prodFileFilterId;
+  sel.innerHTML = '';
+  const allOpt = document.createElement('option');
+  allOpt.value = ''; allOpt.textContent = '전체';
+  sel.appendChild(allOpt);
+  const hasManualEntries = appState.prodRows.some(r => r.manualEntry);
+  if (hasManualEntries) {
+    const manualOpt = document.createElement('option');
+    manualOpt.value = PROD_MANUAL_FILTER; manualOpt.textContent = '직접입력';
+    sel.appendChild(manualOpt);
+  }
+  const hasRestoredEntries = appState.prodRows.some(r => r.restoredEntry);
+  if (hasRestoredEntries) {
+    const restoredOpt = document.createElement('option');
+    restoredOpt.value = PROD_RESTORED_FILTER; restoredOpt.textContent = '복원됨';
+    sel.appendChild(restoredOpt);
+  }
+  appState.prodUploadLog.forEach(entry => {
+    const opt = document.createElement('option');
+    opt.value = entry.id || '';
+    opt.textContent = entry.fileName;
+    sel.appendChild(opt);
+  });
+  // 선택했던 항목이 여전히 목록에 있으면 유지, 없으면 전체로 되돌림
+  const stillExists = prevValue === PROD_MANUAL_FILTER
+    ? hasManualEntries
+    : prevValue === PROD_RESTORED_FILTER
+      ? hasRestoredEntries
+      : (prevValue && appState.prodUploadLog.some(e => e.id === prevValue));
+  prodFileFilterId = stillExists ? prevValue : '';
+  sel.value = prodFileFilterId;
+}
+document.getElementById('prodFileFilter').addEventListener('change', (e) => {
+  prodFileFilterId = e.target.value;
+  prodAnchorCell = null; prodActiveCell = null; prodSelection = null; // 필터가 바뀌면 선택 범위 의미가 없으므로 초기화
+  prodTableFilters = {}; // 대상 파일이 바뀌면 상품명/수량 필터의 선택값 구성도 달라지므로 초기화
+  updateProdFilterIconStates();
+  renderProdRawTable();
+  renderProdSummary();
+});
+
+/* ---- 발주내역 표: 정산내역과 동일한 방식의 드래그 선택 + Ctrl(+Shift)+방향키 ---- */
+let prodAnchorCell = null;
+let prodActiveCell = null;
+let prodSelection = null;
+let prodIsDragging = false;
+const PROD_MAX_COL = 1; // 0: 상품명, 1: 수량(세트)
+
+function getProdTd(r, c) {
+  return document.querySelector(`#prodRawTbody td[data-row-index="${r}"][data-col-index="${c}"]`);
+}
+function clampProdSelection(rows) {
+  if (!rows || rows.length === 0) {
+    prodSelection = null; prodAnchorCell = null; prodActiveCell = null;
+    return;
+  }
+  const maxR = rows.length - 1;
+  const clamp = (cell) => cell ? { r: Math.max(0, Math.min(cell.r, maxR)), c: Math.max(0, Math.min(cell.c, PROD_MAX_COL)) } : null;
+  prodAnchorCell = clamp(prodAnchorCell);
+  prodActiveCell = clamp(prodActiveCell);
+  prodSelection = (prodAnchorCell && prodActiveCell) ? normSel(prodAnchorCell, prodActiveCell) : null;
+}
+function clearProdSelectionVisual() {
+  document.querySelectorAll('#prodRawTbody td.prodCellSelected').forEach(td => {
+    td.classList.remove('prodCellSelected');
+    td.style.boxShadow = '';
+  });
+}
+function applyProdSelectionVisual() {
+  clearProdSelectionVisual();
+  if (!prodSelection) return;
+  const color = '#5b7fd6';
+  for (let r = prodSelection.r1; r <= prodSelection.r2; r++) {
+    for (let c = prodSelection.c1; c <= prodSelection.c2; c++) {
+      const td = getProdTd(r, c);
+      if (!td) continue;
+      td.classList.add('prodCellSelected');
+      const shadows = [];
+      if (r === prodSelection.r1) shadows.push(`inset 0 2px 0 0 ${color}`);
+      if (r === prodSelection.r2) shadows.push(`inset 0 -2px 0 0 ${color}`);
+      if (c === prodSelection.c1) shadows.push(`inset 2px 0 0 0 ${color}`);
+      if (c === prodSelection.c2) shadows.push(`inset -2px 0 0 0 ${color}`);
+      td.style.boxShadow = shadows.join(', ');
+    }
+  }
+}
+function updateProdSelectionFromAnchorActive() {
+  if (!prodAnchorCell || !prodActiveCell) { prodSelection = null; applyProdSelectionVisual(); return; }
+  prodSelection = normSel(prodAnchorCell, prodActiveCell);
+  applyProdSelectionVisual();
+}
+function scrollProdCellIntoView(cell) {
+  const td = getProdTd(cell.r, cell.c);
+  if (td && td.scrollIntoView) td.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+function focusProdProxy() {
+  document.getElementById('prodClipboardProxy').focus({ preventScroll: true });
+}
+// 셀에 값이 채워져 있는지 판단 (Ctrl+방향키로 데이터 블록 끝을 찾을 때 사용)
+function prodCellHasValue(row, colIdx) {
+  if (!row) return false;
+  if (colIdx === 0) return !!String(row.productName || '').trim();
+  if (colIdx === 1) return row.qty === 0 || !!row.qty;
+  return false;
+}
+function prodCtrlArrowTarget(r, c, dr, dc, maxR, maxC, rows) {
+  const within = (rr, cc) => rr >= 0 && rr <= maxR && cc >= 0 && cc <= maxC;
+  const has = (rr, cc) => prodCellHasValue(rows[rr], cc);
+  if (!within(r + dr, c + dc)) return { r, c };
+  if (has(r, c)) {
+    let nr = r + dr, nc = c + dc;
+    if (!within(nr, nc)) return { r, c };
+    if (has(nr, nc)) {
+      let pr = r, pc = c, cr = nr, cc = nc;
+      while (within(cr, cc) && has(cr, cc)) { pr = cr; pc = cc; cr += dr; cc += dc; }
+      return { r: pr, c: pc };
+    }
+    let cr = nr, cc = nc;
+    while (within(cr, cc) && !has(cr, cc)) { cr += dr; cc += dc; }
+    if (within(cr, cc)) return { r: cr, c: cc };
+    return { r: cr - dr, c: cc - dc };
+  }
+  let cr = r + dr, cc = c + dc;
+  while (within(cr, cc) && !has(cr, cc)) { cr += dr; cc += dc; }
+  if (within(cr, cc)) return { r: cr, c: cc };
+  return { r: cr - dr, c: cc - dc };
+}
+document.getElementById('prodRawTbody').addEventListener('mousedown', (e) => {
+  const td = e.target.closest('td.prodSelectableCell');
+  if (!td) return;
+  const r = Number(td.dataset.rowIndex), c = Number(td.dataset.colIndex);
+  if (e.shiftKey && prodAnchorCell) {
+    prodActiveCell = { r, c };
+  } else {
+    prodAnchorCell = { r, c };
+    prodActiveCell = { r, c };
+    prodIsDragging = true;
+  }
+  updateProdSelectionFromAnchorActive();
+  focusProdProxy();
+  e.preventDefault();
+});
+document.getElementById('prodRawTbody').addEventListener('mouseover', (e) => {
+  if (!prodIsDragging) return;
+  const td = e.target.closest('td.prodSelectableCell');
+  if (!td) return;
+  prodActiveCell = { r: Number(td.dataset.rowIndex), c: Number(td.dataset.colIndex) };
+  updateProdSelectionFromAnchorActive();
+});
+document.addEventListener('mouseup', () => { prodIsDragging = false; });
+
+const prodClipboardProxy = document.getElementById('prodClipboardProxy');
+prodClipboardProxy.addEventListener('keydown', (e) => {
+  const rows = getFilteredProdRows();
+  if (!rows || rows.length === 0) return;
+  if (!prodActiveCell) {
+    prodAnchorCell = { r: 0, c: 0 };
+    prodActiveCell = { r: 0, c: 0 };
+    updateProdSelectionFromAnchorActive();
+  }
+  const maxR = rows.length - 1;
+  const clamp = (v, mx) => Math.max(0, Math.min(v, mx));
+  const dirMap = { ArrowUp: [-1, 0], ArrowDown: [1, 0], ArrowLeft: [0, -1], ArrowRight: [0, 1] };
+  if (dirMap[e.key]) {
+    e.preventDefault();
+    const [dr, dc] = dirMap[e.key];
+    const isCtrl = e.ctrlKey || e.metaKey;
+    // Ctrl+방향키: 데이터가 이어진 블록의 끝으로 이동 / Ctrl+Shift+방향키: 그 지점까지 선택영역 확장
+    const next = isCtrl
+      ? prodCtrlArrowTarget(prodActiveCell.r, prodActiveCell.c, dr, dc, maxR, PROD_MAX_COL, rows)
+      : { r: clamp(prodActiveCell.r + dr, maxR), c: clamp(prodActiveCell.c + dc, PROD_MAX_COL) };
+    prodActiveCell = next;
+    if (!e.shiftKey) prodAnchorCell = next;
+    updateProdSelectionFromAnchorActive();
+    scrollProdCellIntoView(next);
+    return;
+  }
+});
+
+/* ---- 발주내역 표: 상품명/수량(세트) 열 필터 (정산내역의 엑셀식 필터와 동일한 방식) ---- */
+let prodTableFilters = {}; // { productName: Set(...), qty: Set(...) }
+let prodColFilterActiveField = null; // 'productName' | 'qty'
+let prodColFilterPendingSet = null;
+
+function getProdDisplayValueForFilter(row, key) {
+  if (key === 'qty') return (row.qty === 0 || row.qty) ? fmtNum(row.qty) : '';
+  return row.productName || '';
+}
+function getProdDistinctColumnValues(rows, key) {
+  const set = new Set();
+  rows.forEach(r => set.add(String(getProdDisplayValueForFilter(r, key))));
+  return [...set].sort((a, b) => a.localeCompare(b, 'ko'));
+}
+function prodRowMatchesFilters(row) {
+  for (const key in prodTableFilters) {
+    const filterSet = prodTableFilters[key];
+    if (!filterSet) continue;
+    if (!filterSet.has(String(getProdDisplayValueForFilter(row, key)))) return false;
+  }
+  return true;
+}
+// 필터가 적용된 열의 헤더 아이콘/배경을 갱신
+function updateProdFilterIconStates() {
+  const iconMap = { productName: 'prodFilterIconName', qty: 'prodFilterIconQty' };
+  Object.entries(iconMap).forEach(([key, iconId]) => {
+    const icon = document.getElementById(iconId);
+    if (!icon) return;
+    const active = !!prodTableFilters[key];
+    icon.className = 'colFilterIcon' + (active ? ' activeFilter' : '');
+    icon.textContent = active ? '▼' : '▾';
+    const th = icon.closest('th');
+    if (th) th.classList.toggle('filteredColHeader', active);
+  });
+}
+function openProdColFilterPopup(key, anchorEl) {
+  const rows = getFilteredProdRows();
+  prodColFilterActiveField = key;
+  const distinct = getProdDistinctColumnValues(rows, key);
+  const existing = prodTableFilters[key];
+  prodColFilterPendingSet = existing ? new Set(existing) : new Set(distinct);
+
+  const listEl = document.getElementById('prodColFilterList');
+  listEl.innerHTML = '';
+  distinct.forEach(val => {
+    const label = document.createElement('label');
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = prodColFilterPendingSet.has(val);
+    cb.dataset.val = val;
+    cb.addEventListener('change', () => {
+      if (cb.checked) prodColFilterPendingSet.add(val); else prodColFilterPendingSet.delete(val);
+    });
+    const span = document.createElement('span');
+    span.textContent = val === '' ? '(비어있음)' : val;
+    label.appendChild(cb);
+    label.appendChild(span);
+    listEl.appendChild(label);
+  });
+
+  document.getElementById('prodColFilterSearch').value = '';
+  const popup = document.getElementById('prodColFilterPopup');
+  popup.classList.remove('hidden');
+  const rect = anchorEl.getBoundingClientRect();
+  const popupWidth = 220;
+  popup.style.top = `${rect.bottom + 4}px`;
+  popup.style.left = `${Math.max(4, Math.min(rect.left, window.innerWidth - popupWidth - 20))}px`;
+}
+document.getElementById('prodFilterIconName').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openProdColFilterPopup('productName', e.currentTarget);
+});
+document.getElementById('prodFilterIconQty').addEventListener('click', (e) => {
+  e.stopPropagation();
+  openProdColFilterPopup('qty', e.currentTarget);
+});
+document.getElementById('prodColFilterSearch').addEventListener('input', (e) => {
+  const q = e.target.value.trim().toLowerCase();
+  document.querySelectorAll('#prodColFilterList label').forEach(label => {
+    const text = label.querySelector('span').textContent.toLowerCase();
+    const matches = text.includes(q);
+    label.style.display = matches ? 'flex' : 'none';
+    if (q && !matches) {
+      const cb = label.querySelector('input');
+      if (cb.checked) {
+        cb.checked = false;
+        prodColFilterPendingSet.delete(cb.dataset.val);
+      }
+    }
+  });
+});
+document.getElementById('prodColFilterSelectAll').addEventListener('click', () => {
+  document.querySelectorAll('#prodColFilterList label').forEach(label => {
+    if (label.style.display === 'none') return;
+    const cb = label.querySelector('input');
+    cb.checked = true;
+    prodColFilterPendingSet.add(cb.dataset.val);
+  });
+});
+document.getElementById('prodColFilterClearAll').addEventListener('click', () => {
+  document.querySelectorAll('#prodColFilterList label').forEach(label => {
+    if (label.style.display === 'none') return;
+    const cb = label.querySelector('input');
+    cb.checked = false;
+    prodColFilterPendingSet.delete(cb.dataset.val);
+  });
+});
+document.getElementById('prodColFilterCancel').addEventListener('click', () => {
+  document.getElementById('prodColFilterPopup').classList.add('hidden');
+});
+document.getElementById('prodColFilterApply').addEventListener('click', () => {
+  const rows = getFilteredProdRows();
+  const distinct = getProdDistinctColumnValues(rows, prodColFilterActiveField);
+  if (prodColFilterPendingSet.size >= distinct.length) {
+    delete prodTableFilters[prodColFilterActiveField];
+  } else {
+    prodTableFilters[prodColFilterActiveField] = prodColFilterPendingSet;
+  }
+  document.getElementById('prodColFilterPopup').classList.add('hidden');
+  updateProdFilterIconStates();
+  renderProdRawTable();
+});
+document.getElementById('prodColFilterClearThis').addEventListener('click', () => {
+  if (prodColFilterActiveField) delete prodTableFilters[prodColFilterActiveField];
+  document.getElementById('prodColFilterPopup').classList.add('hidden');
+  updateProdFilterIconStates();
+  renderProdRawTable();
+});
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('prodColFilterPopup');
+  if (popup.classList.contains('hidden')) return;
+  if (popup.contains(e.target) || e.target.closest('.colFilterIcon')) return;
+  popup.classList.add('hidden');
+});
+
+function renderProdRawTable() {
+  const rows = getFilteredProdRows();
+  const tbody = document.getElementById('prodRawTbody');
+  const table = document.getElementById('prodRawTable');
+  const empty = document.getElementById('prodEmptyState');
+  tbody.innerHTML = '';
+  if (rows.length === 0) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    clampProdSelection(rows);
+    return;
+  }
+  table.classList.remove('hidden');
+  empty.classList.add('hidden');
+  rows.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (r.failed) {
+      tr.classList.add('failRow');
+    } else if (appState.prodOverrides[r.productName]) {
+      // 발주서업데이트로 수동 매핑을 등록해 인식이 성공한 셀은 초록색으로 구분 표시
+      tr.classList.add('updatedRow');
+    }
+    if (!prodRowMatchesFilters(r)) tr.classList.add('hidden'); // 열 필터에 걸러진 행은 화면에서만 숨김(데이터/인덱스는 그대로 유지)
+    const tdIdx = document.createElement('td');
+    tdIdx.className = 'rowIdx';
+    tdIdx.textContent = i + 1;
+    const tdName = document.createElement('td');
+    tdName.textContent = r.manualEntry ? `${r.productName} (오프라인 생산)` : r.productName;
+    tdName.className = 'prodSelectableCell';
+    tdName.dataset.rowIndex = i;
+    tdName.dataset.colIndex = 0;
+    const tdQty = document.createElement('td');
+    tdQty.textContent = fmtNum(r.qty);
+    tdQty.className = 'prodSelectableCell';
+    tdQty.dataset.rowIndex = i;
+    tdQty.dataset.colIndex = 1;
+    tr.appendChild(tdIdx); tr.appendChild(tdName); tr.appendChild(tdQty);
+    tbody.appendChild(tr);
+  });
+  clampProdSelection(rows);
+  applyProdSelectionVisual();
+}
+
+// 상품별 총 인분 표에 표시할 카테고리 순서
+const PROD_DISPLAY_ORDER = ['칼국수', '콩국수', '소바', '우동', '공주칼국수'];
+
+function renderProdSummary() {
+  const { lineMap, categoryServings, otherServings, sobaRuns, kalguksuRuns, unparsedCount } = computeProductionSummary(getFilteredProdRows());
+
+  const lineTbody = document.getElementById('prodLineTbody');
+  lineTbody.innerHTML = '';
+  Object.values(lineMap).forEach(({ base, perSet, sets, viaOverride }) => {
+    const tr = document.createElement('tr');
+    if (viaOverride) tr.classList.add('updatedRow'); // 발주서업데이트로 인식된 상품명은 초록색으로 표시
+    const tdBase = document.createElement('td'); tdBase.textContent = base;
+    const tdPerSet = document.createElement('td'); tdPerSet.textContent = perSet + '인';
+    const tdSets = document.createElement('td'); tdSets.textContent = fmtNum(sets) + '개';
+    tr.appendChild(tdBase); tr.appendChild(tdPerSet); tr.appendChild(tdSets);
+    lineTbody.appendChild(tr);
+  });
+
+  // 상품별 총 인분: 칼국수/콩국수/소바/우동/공주칼국수 카테고리 기준으로 다시 집계해서 표시
+  const baseTbody = document.getElementById('prodBaseTbody');
+  baseTbody.innerHTML = '';
+  PROD_DISPLAY_ORDER.forEach(cat => {
+    const servings = categoryServings[cat] || 0;
+    if (servings === 0) return; // 해당 카테고리 주문이 아예 없으면 표시하지 않음
+    const tr = document.createElement('tr');
+    const tdBase = document.createElement('td'); tdBase.textContent = cat;
+    const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(servings) + '인분';
+    tr.appendChild(tdBase); tr.appendChild(tdServ);
+    baseTbody.appendChild(tr);
+  });
+  if (otherServings > 0) {
+    const tr = document.createElement('tr');
+    const tdBase = document.createElement('td'); tdBase.textContent = '기타';
+    const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(otherServings) + '인분';
+    tr.appendChild(tdBase); tr.appendChild(tdServ);
+    baseTbody.appendChild(tr);
+  }
+
+  const runSummary = document.getElementById('prodRunSummary');
+  runSummary.innerHTML = '';
+  const addRunLine = (label, runs) => {
+    const div = document.createElement('div');
+    div.className = 'prodRunLine';
+    div.innerHTML = `<span>${label} 생산횟수</span><span>${runs.toFixed(1)}회</span>`;
+    runSummary.appendChild(div);
+  };
+  addRunLine('소바', sobaRuns);
+  addRunLine('칼국수', kalguksuRuns);
+  if (unparsedCount > 0) {
+    const note = document.createElement('div');
+    note.className = 'smallNote';
+    note.style.marginTop = '4px';
+    note.textContent = `※ 상품명에서 "OO인" 형식을 찾지 못해 집계에서 제외된 항목 ${unparsedCount}건`;
+    runSummary.appendChild(note);
+  }
+}
+
+let prodUploadLogCollapsed = false; // 발주서 업로드 기록 접기/펼치기 상태
+function renderProdUploadLog() {
+  const area = document.getElementById('prodUploadLog');
+  const log = appState.prodUploadLog;
+  if (!log || log.length === 0) {
+    area.classList.add('hidden');
+    area.innerHTML = '';
+    return;
+  }
+  area.classList.remove('hidden');
+  area.innerHTML = `<div class="sectionTitle uploadLogHeader"><span>업로드 기록</span><span class="uploadLogToggleBtn">${prodUploadLogCollapsed ? '▲ 펼치기' : '▼ 접기'}</span></div>`
+    + `<div class="uploadLogListInner${prodUploadLogCollapsed ? ' hidden' : ''}"></div>`;
+  area.querySelector('.uploadLogHeader').addEventListener('click', () => {
+    prodUploadLogCollapsed = !prodUploadLogCollapsed;
+    renderProdUploadLog();
+  });
+  const listEl = area.querySelector('.uploadLogListInner');
+  // 최근 업로드가 위로 오도록 표시
+  [...log].reverse().forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'uploadLogLine';
+    div.innerHTML = `[${entry.fileName}] ${fmtNum(entry.total)}건중 `
+      + `<span class="okCount">${fmtNum(entry.success)}건 성공</span> `
+      + `<span class="failCount">${fmtNum(entry.fail)}건 실패</span>`;
+    if (entry.remappable) {
+      const btn = document.createElement('button');
+      btn.textContent = '열 재매핑';
+      btn.style.cssText = 'margin-left:8px;padding:2px 8px;font-size:12px;border-radius:4px;border:1px solid #4b5d78;background:#4b5d78;color:#fff;cursor:pointer;';
+      btn.addEventListener('click', () => openProdRemap(entry.id));
+      div.appendChild(btn);
+    }
+    listEl.appendChild(div);
+  });
+}
+
+function renderProdStatusTable() {
+  const rows = appState.prodRows;
+  const uniqueNames = [...new Set(rows.map(r => r.productName))];
+  const tbody = document.getElementById('prodStatusTbody');
+  const table = document.getElementById('prodStatusTable');
+  const empty = document.getElementById('prodStatusEmpty');
+  tbody.innerHTML = '';
+  if (uniqueNames.length === 0) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  table.classList.remove('hidden');
+  empty.classList.add('hidden');
+  uniqueNames.forEach(name => {
+    const resolved = resolveProductServing(name);
+    const isOverridden = !!appState.prodOverrides[name];
+    const tr = document.createElement('tr');
+    if (isOverridden) tr.classList.add('updatedRow'); // 상품수정으로 바로잡은 항목은 초록색으로 구분 표시
+    const tdName = document.createElement('td');
+    tdName.textContent = name;
+    tdName.style.textAlign = 'left';
+    const tdResolved = document.createElement('td');
+    tdResolved.textContent = resolved ? `${resolved.base} ${resolved.perSet}인` : '-';
+    const tdStatus = document.createElement('td');
+    const badge = document.createElement('span');
+    badge.className = 'statusBadge ' + (resolved ? 'ok' : 'fail');
+    badge.textContent = resolved ? '성공' : '실패';
+    tdStatus.appendChild(badge);
+    if (isOverridden) {
+      const fixBadge = document.createElement('span');
+      fixBadge.className = 'statusBadge fixed';
+      fixBadge.textContent = '수정됨';
+      fixBadge.style.marginLeft = '4px';
+      tdStatus.appendChild(fixBadge);
+    }
+    const tdManage = document.createElement('td');
+    const fixBtn = document.createElement('button');
+    fixBtn.className = 'overrideDelBtn';
+    fixBtn.style.background = '#4b5d78';
+    fixBtn.textContent = '상품수정';
+    fixBtn.addEventListener('click', () => openProdFixModal(name));
+    tdManage.appendChild(fixBtn);
+    tr.appendChild(tdName); tr.appendChild(tdResolved); tr.appendChild(tdStatus); tr.appendChild(tdManage);
+    tbody.appendChild(tr);
+  });
+}
+
+// 인식현황 탭에서 "상품수정" 버튼을 눌렀을 때 모달을 열고, 현재 인식 결과가 있으면 미리 채워준다
+function openProdFixModal(name) {
+  prodFixOrigName = name;
+  document.getElementById('prodFixOrigLabel').textContent = `대상 상품명(원본): ${name}`;
+  const resolved = resolveProductServing(name);
+  document.getElementById('prodFixBase').value = resolved ? resolved.base : '';
+  document.getElementById('prodFixPerSet').value = resolved ? resolved.perSet : '';
+  showModal('prodFixModal');
+}
+document.getElementById('prodFixCancel').addEventListener('click', () => { prodFixOrigName = null; hideModal('prodFixModal'); });
+document.getElementById('prodFixSave').addEventListener('click', () => {
+  if (!prodFixOrigName) { hideModal('prodFixModal'); return; }
+  const base = document.getElementById('prodFixBase').value.trim();
+  const perSet = Number(document.getElementById('prodFixPerSet').value);
+  if (!base) { alert('기본 상품명을 입력하세요.'); return; }
+  if (!perSet || perSet <= 0) { alert('1세트당 인분을 올바르게 입력하세요.'); return; }
+  appState.prodOverrides[prodFixOrigName] = { base, perSet };
+  // 저장된 매핑을 기존 업로드 내역 전체에 다시 적용해서 인식 결과와 실패 표시를 갱신
+  appState.prodRows.forEach(r => { r.failed = !resolveProductServing(r.productName); });
+  saveState();
+  prodFixOrigName = null;
+  hideModal('prodFixModal');
+  renderProduction();
+});
+
+function renderProdOverrideTable() {
+  const entries = Object.entries(appState.prodOverrides);
+  const tbody = document.getElementById('prodOverrideTbody');
+  const table = document.getElementById('prodOverrideTable');
+  const empty = document.getElementById('prodOverrideEmpty');
+  tbody.innerHTML = '';
+  if (entries.length === 0) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  table.classList.remove('hidden');
+  empty.classList.add('hidden');
+  entries.forEach(([origName, mapping]) => {
+    const tr = document.createElement('tr');
+    const tdOrig = document.createElement('td');
+    tdOrig.textContent = origName;
+    tdOrig.style.textAlign = 'left';
+    const tdBase = document.createElement('td');
+    tdBase.textContent = mapping.base;
+    const tdPerSet = document.createElement('td');
+    tdPerSet.textContent = mapping.perSet + '인';
+    const tdDel = document.createElement('td');
+    const delBtn = document.createElement('button');
+    delBtn.className = 'overrideDelBtn';
+    delBtn.textContent = '삭제';
+    delBtn.addEventListener('click', () => {
+      delete appState.prodOverrides[origName];
+      appState.prodRows.forEach(r => { r.failed = !resolveProductServing(r.productName); });
+      saveState();
+      renderProduction();
+    });
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdOrig); tr.appendChild(tdBase); tr.appendChild(tdPerSet); tr.appendChild(tdDel);
+    tbody.appendChild(tr);
+  });
+}
+
+function renderProduction() {
+  buildProdFileFilterOptions();
+  renderProdRawTable();
+  renderProdSummary();
+  renderProdUploadLog();
+  renderProdStatusTable();
+  renderProdOverrideTable();
+  renderProdRemovedTable();
+}
+
+/* ===================== 제거됨 탭: 발주제거로 삭제한 내역 모아보기 + 복원 ===================== */
+function fmtDateTime(ts) {
+  const d = new Date(ts);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+function renderProdRemovedTable() {
+  const list = appState.prodRemovedRows || [];
+  const tbody = document.getElementById('prodRemovedTbody');
+  const table = document.getElementById('prodRemovedTable');
+  const empty = document.getElementById('prodRemovedEmpty');
+  tbody.innerHTML = '';
+  if (list.length === 0) {
+    table.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  table.classList.remove('hidden');
+  empty.classList.add('hidden');
+  list.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    const tdName = document.createElement('td');
+    tdName.textContent = r.manualEntry ? `${r.productName} (오프라인 생산)` : r.productName;
+    const tdQty = document.createElement('td');
+    tdQty.textContent = fmtNum(r.qty);
+    const tdRemovedAt = document.createElement('td');
+    tdRemovedAt.textContent = r.removedAt ? fmtDateTime(r.removedAt) : '';
+    const tdActions = document.createElement('td');
+    const btnRestore = document.createElement('button');
+    btnRestore.type = 'button';
+    btnRestore.className = 'btnRestore';
+    btnRestore.textContent = '복원';
+    btnRestore.style.marginRight = '6px';
+    btnRestore.addEventListener('click', () => {
+      const idx = appState.prodRemovedRows.indexOf(r);
+      if (idx === -1) return;
+      const { removedAt, ...restored } = appState.prodRemovedRows[idx];
+      appState.prodRemovedRows.splice(idx, 1);
+      // 복원된 항목은 "복원됨" 가상 파일로 따로 묶어서 발주내역 파일 필터에서 구분해 볼 수 있게 한다
+      restored.restoredEntry = true;
+      restored.restoredAt = Date.now();
+      appState.prodRows.push(restored);
+      saveState();
+      renderProduction();
+    });
+    const btnDelete = document.createElement('button');
+    btnDelete.type = 'button';
+    btnDelete.className = 'btnPermDelete';
+    btnDelete.textContent = '영구삭제';
+    btnDelete.addEventListener('click', () => {
+      const ok = confirm(`"${r.productName}" 항목을 완전히 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`);
+      if (!ok) return;
+      const idx = appState.prodRemovedRows.indexOf(r);
+      if (idx === -1) return;
+      appState.prodRemovedRows.splice(idx, 1);
+      saveState();
+      renderProduction();
+    });
+    tdActions.appendChild(btnRestore);
+    tdActions.appendChild(btnDelete);
+    tr.appendChild(tdName); tr.appendChild(tdQty); tr.appendChild(tdRemovedAt); tr.appendChild(tdActions);
+    tbody.appendChild(tr);
+  });
+}
+document.getElementById('btnProdRemovedRestoreAll').addEventListener('click', () => {
+  const list = appState.prodRemovedRows || [];
+  if (list.length === 0) { alert('복원할 내역이 없습니다.'); return; }
+  const ok = confirm(`제거된 ${list.length}건을 모두 발주내역으로 복원합니다. 계속할까요?`);
+  if (!ok) return;
+  list.forEach(r => {
+    const { removedAt, ...restored } = r;
+    restored.restoredEntry = true;
+    restored.restoredAt = Date.now();
+    appState.prodRows.push(restored);
+  });
+  appState.prodRemovedRows = [];
+  saveState();
+  renderProduction();
+  alert('모두 복원되었습니다.');
+});
+document.getElementById('btnProdRemovedClearAll').addEventListener('click', () => {
+  const list = appState.prodRemovedRows || [];
+  if (list.length === 0) { alert('삭제할 내역이 없습니다.'); return; }
+  const ok = confirm(`제거된 내역 ${list.length}건을 모두 완전히 삭제합니다. 되돌릴 수 없습니다. 계속할까요?`);
+  if (!ok) return;
+  appState.prodRemovedRows = [];
+  saveState();
+  renderProduction();
+});
+
+document.querySelectorAll('.prodTabBtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.prodTabBtn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.prodSheet').forEach(s => s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.ptab).classList.add('active');
+  });
+});
+
+document.getElementById('btnProdUpload').addEventListener('click', () => {
+  document.getElementById('prodFileInput').click();
+});
+
+function openProdRemap(logId) {
+  if (!prodRawFileCache[logId]) { alert('원본 파일 정보를 찾을 수 없습니다. 파일을 다시 업로드해주세요.'); return; }
+  const entry = appState.prodUploadLog.find(en => en.id === logId);
+  prodRemapLogId = logId;
+  ['prodRemapProductName','prodRemapQty'].forEach(id => {
+    buildColumnSelectOptions(document.getElementById(id));
+    const el = document.getElementById(id);
+    const blank = document.createElement('option');
+    blank.value=''; blank.textContent='(자동인식)';
+    el.insertBefore(blank, el.firstChild);
+    el.value = '';
+  });
+  document.getElementById('prodRemapStartRow').value = 2;
+  document.getElementById('prodRemapFileLabel').textContent = entry ? `대상 파일: ${entry.fileName}` : '';
+  showModal('prodRemapModal');
+}
+
+// sheets(readWorkbookAllSheets 결과)를 상품명/수량 열 지정에 따라 파싱해 prodRows 형태의 배열로 변환.
+// productLetter/qtyLetter가 빈값이면 헤더 키워드로 자동 인식.
+function parseSheetsForProduction(sheets, productLetter, qtyLetter, startRow, logId) {
+  const rows = [];
+  let total = 0;
+  let fail = 0;
+  sheets.forEach(({ aoa }) => {
+    const headerRow = aoa[0] || [];
+    const idxProduct = resolveProductNameColIdx(productLetter, aoa, startRow);
+    const idxQty = resolveOrderColIdx(qtyLetter, headerRow, QTY_KEYWORDS, QTY_EXCLUDE);
+
+    if (idxProduct === -1 || idxQty === -1) {
+      // 상품명/수량 열 자체를 못 찾으면, 어떤 열이 무엇인지 알 수 없으므로
+      // 행 전체 내용을 그대로 보여주고 인식 실패로 표시해 좌측 목록에 남긴다
+      for (let i = startRow - 1; i < aoa.length; i++) {
+        const row = aoa[i];
+        if (rowIsEmpty(row)) continue;
+        total++;
+        fail++;
+        const rawText = row.filter(c => c !== undefined && c !== null && String(c).trim() !== '')
+          .map(c => String(c).trim()).join(' / ');
+        rows.push({ productName: rawText || '(빈 행)', qty: '', failed: true, logId });
+      }
+      return;
+    }
+
+    for (let i = startRow - 1; i < aoa.length; i++) {
+      const row = aoa[i];
+      if (rowIsEmpty(row)) continue;
+      const productName = String(row[idxProduct] ?? '').trim();
+      if (!productName) continue;
+      total++;
+      const qty = Number(row[idxQty]) || 0;
+      const failed = !resolveProductServing(productName);
+      rows.push({ productName, qty, failed, logId });
+      if (failed) fail++;
+    }
+  });
+  return { rows, total, fail };
+}
+
+document.getElementById('prodFileInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (files.length === 0) return;
+
+  const PROD_START_ROW = 2;
+  let totalAdded = 0;
+  let sheetCount = 0;
+  const failedFiles = [];
+
+  for (const file of files) {
+    const logId = nextProdLogId();
+    let sheets;
+    try {
+      sheets = await readWorkbookAllSheets(file);
+      sheets = sheets.slice(0, 1); // 생산량계산기 발주서는 첫 번째 시트만 인식
+    } catch (err) {
+      console.error(err);
+      failedFiles.push(file.name);
+      continue;
+    }
+    sheetCount += sheets.length;
+    const { rows, total: fileTotal, fail: fileFail } = parseSheetsForProduction(sheets, '', '', PROD_START_ROW, logId);
+    rows.forEach(r => appState.prodRows.push(r));
+    totalAdded += rows.length;
+
+    const fileSuccess = fileTotal - fileFail;
+    const remappable = fileSuccess === 0 && fileTotal > 0;
+    if (remappable) prodRawFileCache[logId] = sheets; // 재매핑용으로 원본 시트 보관 (0건 인식 시에만)
+
+    appState.prodUploadLog.push({
+      id: logId,
+      fileName: file.name,
+      total: fileTotal,
+      success: fileSuccess,
+      fail: fileFail,
+      uploadedAt: Date.now(),
+      remappable,
+    });
+  }
+
+  saveState();
+  renderProduction();
+
+  let msg = `발주서 ${files.length}개 파일 (총 ${sheetCount}개 시트)에서 총 ${totalAdded}건이 추가되었습니다. (기존 내역 유지)`;
+  if (failedFiles.length > 0) msg += `\n읽기 실패한 파일: ${failedFiles.join(', ')}`;
+  alert(msg);
+});
+
+document.getElementById('prodRemapCancel').addEventListener('click', () => { prodRemapLogId = null; hideModal('prodRemapModal'); });
+document.getElementById('prodRemapSave').addEventListener('click', () => {
+  const logId = prodRemapLogId;
+  const sheets = prodRawFileCache[logId];
+  if (!logId || !sheets) { alert('원본 파일 정보를 찾을 수 없습니다. 파일을 다시 업로드해주세요.'); hideModal('prodRemapModal'); return; }
+  const productLetter = document.getElementById('prodRemapProductName').value || '';
+  const qtyLetter = document.getElementById('prodRemapQty').value || '';
+  const startRow = Number(document.getElementById('prodRemapStartRow').value) || 2;
+
+  // 기존에 이 파일(logId)로 추가됐던 행들을 제거하고 새 매핑으로 다시 파싱해 넣는다
+  appState.prodRows = appState.prodRows.filter(r => r.logId !== logId);
+  const { rows, total, fail } = parseSheetsForProduction(sheets, productLetter, qtyLetter, startRow, logId);
+  rows.forEach(r => appState.prodRows.push(r));
+
+  const success = total - fail;
+  const remappable = success === 0 && total > 0;
+  const entry = appState.prodUploadLog.find(en => en.id === logId);
+  if (entry) {
+    entry.total = total;
+    entry.success = success;
+    entry.fail = fail;
+    entry.remappable = remappable;
+  }
+  if (!remappable) delete prodRawFileCache[logId]; // 성공했으면 캐시 정리
+
+  saveState();
+  prodRemapLogId = null;
+  hideModal('prodRemapModal');
+  renderProduction();
+  alert(`재매핑 완료: 총 ${total}건 중 ${success}건 인식되었습니다.`);
+});
+
+// 발주내역 표에서 드래그로 선택한 셀(행)들을 삭제한다. 삭제 전 상품명별로 묶어서
+// "몇 개(세트)", "총 몇 인분"인지 확인 창을 띄운 뒤 확인해야 실제로 삭제된다.
+let prodRemovePendingTargets = null; // 발주제거 확인 모달에서 실제로 제거될 행 목록(확인 전까지 대기)
+
+document.getElementById('btnProdRemove').addEventListener('click', () => {
+  if (!prodSelection) { alert('삭제할 셀을 드래그로 선택한 후 다시 눌러주세요.'); return; }
+  const rows = getFilteredProdRows();
+  const targets = [];
+  for (let r = prodSelection.r1; r <= prodSelection.r2; r++) {
+    if (!rows[r]) continue;
+    if (!prodRowMatchesFilters(rows[r])) continue; // 상품명/수량 필터로 숨겨진 행은 삭제 대상에서 제외
+    targets.push(rows[r]);
+  }
+  if (targets.length === 0) { alert('선택된 내역이 없습니다.'); return; }
+
+  prodRemovePendingTargets = targets;
+
+  // 발주내역 탭의 "정리 내역"/"상품별 총 인분" 표와 동일한 형식으로 제거될 내역을 보여준다
+  const { lineMap, baseTotals, unparsedCount } = computeProductionSummary(targets);
+
+  const lineTbody = document.getElementById('prodRemoveConfirmLineTbody');
+  lineTbody.innerHTML = '';
+  Object.values(lineMap).forEach(({ base, perSet, sets }) => {
+    const tr = document.createElement('tr');
+    const tdBase = document.createElement('td'); tdBase.textContent = base;
+    const tdPerSet = document.createElement('td'); tdPerSet.textContent = perSet + '인';
+    const tdSets = document.createElement('td'); tdSets.textContent = fmtNum(sets) + '개';
+    tr.appendChild(tdBase); tr.appendChild(tdPerSet); tr.appendChild(tdSets);
+    lineTbody.appendChild(tr);
+  });
+
+  const baseTbody = document.getElementById('prodRemoveConfirmBaseTbody');
+  baseTbody.innerHTML = '';
+  Object.entries(baseTotals).forEach(([base, servings]) => {
+    const tr = document.createElement('tr');
+    const tdBase = document.createElement('td'); tdBase.textContent = base;
+    const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(servings) + '인분';
+    tr.appendChild(tdBase); tr.appendChild(tdServ);
+    baseTbody.appendChild(tr);
+  });
+
+  const unparsedEl = document.getElementById('prodRemoveConfirmUnparsed');
+  if (unparsedCount > 0) {
+    unparsedEl.textContent = `※ 인분 수를 인식하지 못한 항목 ${unparsedCount}건은 표에 집계되지 않았지만 함께 제거됩니다.`;
+    unparsedEl.classList.remove('hidden');
+  } else {
+    unparsedEl.classList.add('hidden');
+  }
+
+  showModal('prodRemoveConfirmModal');
+});
+document.getElementById('prodRemoveConfirmCancel').addEventListener('click', () => {
+  prodRemovePendingTargets = null;
+  hideModal('prodRemoveConfirmModal');
+});
+document.getElementById('prodRemoveConfirmOk').addEventListener('click', () => {
+  const targets = prodRemovePendingTargets;
+  hideModal('prodRemoveConfirmModal');
+  if (!targets || targets.length === 0) return;
+
+  targets.forEach(row => {
+    const idx = appState.prodRows.indexOf(row);
+    if (idx !== -1) {
+      appState.prodRows.splice(idx, 1);
+      appState.prodRemovedRows.push({ ...row, removedAt: Date.now() });
+    }
+  });
+
+  prodRemovePendingTargets = null;
+  prodAnchorCell = null; prodActiveCell = null; prodSelection = null;
+  saveState();
+  renderProduction();
+  alert(`${targets.length}건이 [제거됨] 탭으로 이동했습니다.`);
+});
+
+document.getElementById('btnProdReset').addEventListener('click', () => {
+  if (appState.prodRows.length === 0 && appState.prodUploadLog.length === 0) { alert('초기화할 내역이 없습니다.'); return; }
+  const ok = confirm('업로드된 발주서 내역과 업로드 기록을 모두 초기화합니다. 계속할까요?');
+  if (!ok) return;
+  appState.prodRows = [];
+  appState.prodUploadLog = [];
+  saveState();
+  renderProduction();
+  alert('초기화되었습니다.');
+});
+
+/* ===================== 생산량입력 (발주서를 거치지 않는 오프라인 생산량 직접 추가) ===================== */
+document.getElementById('btnProdManualInput').addEventListener('click', () => {
+  document.getElementById('prodManualBase').value = '';
+  document.getElementById('prodManualPerSet').value = '';
+  showModal('prodManualInputModal');
+});
+document.getElementById('prodManualCancel').addEventListener('click', () => hideModal('prodManualInputModal'));
+document.getElementById('prodManualSave').addEventListener('click', () => {
+  const base = document.getElementById('prodManualBase').value.trim();
+  const perSet = Number(document.getElementById('prodManualPerSet').value);
+  if (!base) { alert('상품명을 입력하세요.'); return; }
+  if (!perSet || perSet <= 0) { alert('인분 수를 올바르게 입력하세요.'); return; }
+  appState.prodRows.push({
+    productName: `${base} ${perSet}인분`,
+    qty: 1,
+    failed: false,
+    manualEntry: true, // 발주서 업로드가 아닌 오프라인 생산 직접 입력분임을 표시
+  });
+  saveState();
+  renderProduction();
+  hideModal('prodManualInputModal');
+  alert(`"${base} ${perSet}인분"이 발주내역에 추가되었습니다.`);
+});
+
+/* ===================== 발주서업데이트 (인식 실패 항목 수정) ===================== */
+document.getElementById('btnProdUpdate').addEventListener('click', () => {
+  const failedNames = [...new Set(appState.prodRows.filter(r => r.failed).map(r => r.productName))];
+  const list = document.getElementById('prodUpdateList');
+  const emptyMsg = document.getElementById('prodUpdateEmpty');
+  list.innerHTML = '';
+  if (failedNames.length === 0) {
+    emptyMsg.classList.remove('hidden');
+  } else {
+    emptyMsg.classList.add('hidden');
+    failedNames.forEach(name => {
+      const row = document.createElement('div');
+      row.className = 'prodUpdateRow';
+      row.dataset.origName = name;
+      row.innerHTML = `
+        <div class="origName">${name}</div>
+        <div class="fieldsRow">
+          <div>
+            <label>기본 상품명</label>
+            <input type="text" class="baseInput" placeholder="예: 칼국수">
+          </div>
+          <div>
+            <label>1세트당 인분</label>
+            <input type="number" class="perSetInput" placeholder="예: 10">
+          </div>
+        </div>
+      `;
+      list.appendChild(row);
+    });
+  }
+  showModal('prodUpdateModal');
+});
+document.getElementById('prodUpdateCancel').addEventListener('click', () => hideModal('prodUpdateModal'));
+document.getElementById('prodUpdateSave').addEventListener('click', () => {
+  const rows = document.querySelectorAll('#prodUpdateList .prodUpdateRow');
+  let savedCount = 0;
+  rows.forEach(row => {
+    const origName = row.dataset.origName;
+    const base = row.querySelector('.baseInput').value.trim();
+    const perSet = Number(row.querySelector('.perSetInput').value);
+    if (base && perSet > 0) {
+      appState.prodOverrides[origName] = { base, perSet };
+      savedCount++;
+    }
+  });
+
+  if (savedCount === 0) { hideModal('prodUpdateModal'); return; }
+
+  // 저장된 매핑을 기존 업로드 내역 전체에 다시 적용해서 실패 표시를 갱신
+  appState.prodRows.forEach(r => {
+    r.failed = !resolveProductServing(r.productName);
+  });
+
+  saveState();
+  renderProduction();
+  hideModal('prodUpdateModal');
+  alert(`${savedCount}개 상품이 업데이트되었습니다. 같은 이름의 항목은 앞으로도 자동으로 인식됩니다.`);
+});
+
+/* ===================== 입고일지 (세금계산서 업로드 -> 달력) ===================== */
+function nextInboundLogId() {
+  return 'ilog_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+}
+function formatDateYMD(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+const _todayForInbound = new Date();
+let inboundViewYear = _todayForInbound.getFullYear();
+let inboundViewMonth = _todayForInbound.getMonth(); // 0~11
+let inboundSelectedDate = null; // 'YYYY-MM-DD'
+
+document.getElementById('btnInboundUpload').addEventListener('click', () => {
+  document.getElementById('inboundFileInput').click();
+});
+document.getElementById('inboundFileInput').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  e.target.value = '';
+  if (files.length === 0) return;
+
+  const cm = appState.inboundColMap;
+  const startRow = cm.startRow || 2;
+  let totalAdded = 0;
+  let sheetCount = 0;
+  const failedFiles = [];
+
+  for (const file of files) {
+    const logId = nextInboundLogId();
+    let sheets;
+    try {
+      sheets = await readWorkbookAllSheets(file);
+    } catch (err) {
+      console.error(err);
+      failedFiles.push(file.name);
+      continue;
+    }
+    sheetCount += sheets.length;
+    let fileTotal = 0, fileFail = 0;
+    sheets.forEach(({ aoa }) => {
+      const idxDate = resolveSmartColIdx(cm.date, aoa, startRow, INBOUND_DATE_KEYWORDS, null);
+      const idxVendor = resolveSmartColIdx(cm.vendor, aoa, startRow, INBOUND_VENDOR_KEYWORDS, INBOUND_VENDOR_EXCLUDE);
+      const idxItem = resolveSmartColIdx(cm.itemName, aoa, startRow, INBOUND_ITEM_KEYWORDS, null);
+      const idxQty = resolveSmartColIdx(cm.qty, aoa, startRow, INBOUND_QTY_KEYWORDS, QTY_EXCLUDE);
+      const idxAmount = resolveSmartColIdx(cm.amount, aoa, startRow, INBOUND_AMOUNT_KEYWORDS, null);
+
+      for (let i = startRow - 1; i < aoa.length; i++) {
+        const row = aoa[i];
+        if (rowIsEmpty(row)) continue;
+        fileTotal++;
+        const rawDateVal = idxDate !== -1 ? row[idxDate] : '';
+        const date = formatInboundDate(rawDateVal);
+        const vendor = idxVendor !== -1 ? String(row[idxVendor] ?? '').trim() : '';
+        const itemName = idxItem !== -1 ? String(row[idxItem] ?? '').trim() : '';
+        const qty = idxQty !== -1 ? (Number(row[idxQty]) || 0) : 0;
+        const amount = idxAmount !== -1 ? (Number(row[idxAmount]) || 0) : 0;
+        const failed = !date; // 날짜를 못 읽으면 달력에 배치할 수 없으므로 인식 실패로 처리
+        if (failed) fileFail++;
+        appState.inboundRows.push({ date, vendor, itemName, qty, amount, logId, failed });
+        totalAdded++;
+      }
+    });
+
+    appState.inboundUploadLog.push({
+      id: logId,
+      fileName: file.name,
+      total: fileTotal,
+      success: fileTotal - fileFail,
+      fail: fileFail,
+      uploadedAt: Date.now(),
+    });
+  }
+
+  saveState();
+  renderInbound();
+
+  let msg = `세금계산서 ${files.length}개 파일(총 ${sheetCount}개 시트)에서 총 ${totalAdded}건이 추가되었습니다.`;
+  if (failedFiles.length > 0) msg += `\n읽기 실패한 파일: ${failedFiles.join(', ')}`;
+  alert(msg);
+});
+
+/* ===================== 입고일지: 세금계산서 없이 날짜를 직접 선택해 내역 추가 ===================== */
+let manualCalYear, manualCalMonth, manualSelectedDate;
+
+document.getElementById('btnInboundManual').addEventListener('click', () => {
+  const today = new Date();
+  manualCalYear = today.getFullYear();
+  manualCalMonth = today.getMonth();
+  manualSelectedDate = formatDateYMD(today);
+  document.getElementById('manualVendor').value = '';
+  document.getElementById('manualItem').value = '';
+  document.getElementById('manualQty').value = '';
+  document.getElementById('manualAmount').value = '';
+  renderManualCal();
+  showModal('inboundManualModal');
+});
+
+function renderManualCal() {
+  const y = manualCalYear, m = manualCalMonth;
+  document.getElementById('manualCalTitle').textContent = `${y}년 ${m + 1}월`;
+  document.getElementById('manualSelectedDateLabel').textContent = `선택한 날짜: ${manualSelectedDate}`;
+
+  const firstOfMonth = new Date(y, m, 1);
+  const startOffset = firstOfMonth.getDay();
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const todayStr = formatDateYMD(new Date());
+
+  const grid = document.getElementById('manualCalGrid');
+  grid.innerHTML = '';
+  ['일', '월', '화', '수', '목', '금', '토'].forEach(w => {
+    const h = document.createElement('div');
+    h.className = 'miniHeadCell';
+    h.textContent = w;
+    grid.appendChild(h);
+  });
+
+  const cellDate = new Date(y, m, 1 - startOffset);
+  for (let i = 0; i < totalCells; i++) {
+    const dateStr = formatDateYMD(cellDate);
+    const isCurMonth = cellDate.getMonth() === m;
+    const cell = document.createElement('div');
+    cell.className = 'miniDayCell';
+    if (!isCurMonth) cell.classList.add('otherMonth');
+    if (dateStr === todayStr) cell.classList.add('today');
+    if (dateStr === manualSelectedDate) cell.classList.add('selectedDay');
+    cell.textContent = cellDate.getDate();
+
+    const clickDateStr = dateStr;
+    cell.addEventListener('click', () => {
+      manualSelectedDate = clickDateStr;
+      renderManualCal();
+    });
+
+    grid.appendChild(cell);
+    cellDate.setDate(cellDate.getDate() + 1);
+  }
+}
+document.getElementById('btnManualCalPrev').addEventListener('click', () => {
+  manualCalMonth--;
+  if (manualCalMonth < 0) { manualCalMonth = 11; manualCalYear--; }
+  renderManualCal();
+});
+document.getElementById('btnManualCalNext').addEventListener('click', () => {
+  manualCalMonth++;
+  if (manualCalMonth > 11) { manualCalMonth = 0; manualCalYear++; }
+  renderManualCal();
+});
+document.getElementById('manualCancel').addEventListener('click', () => hideModal('inboundManualModal'));
+document.getElementById('manualSave').addEventListener('click', () => {
+  if (!manualSelectedDate) { alert('날짜를 선택하세요.'); return; }
+  const vendor = document.getElementById('manualVendor').value.trim();
+  const itemName = document.getElementById('manualItem').value.trim();
+  const qty = Number(document.getElementById('manualQty').value) || 0;
+  const amount = Number(document.getElementById('manualAmount').value) || 0;
+  if (!vendor && !itemName) { alert('거래처 또는 품목명 중 하나는 입력하세요.'); return; }
+
+  appState.inboundRows.push({
+    date: manualSelectedDate,
+    vendor,
+    itemName,
+    qty,
+    amount,
+    logId: null,
+    failed: false,
+    manualEntry: true, // 세금계산서 업로드가 아닌 직접입력분임을 표시
+  });
+  saveState();
+  renderInbound();
+  hideModal('inboundManualModal');
+  alert(`${manualSelectedDate}에 내역이 추가되었습니다.`);
+});
+
+function prepareInboundColMapSelects() {
+  ['inboundColDate', 'inboundColVendor', 'inboundColItem', 'inboundColQty', 'inboundColAmount'].forEach(id => {
+    buildColumnSelectOptions(document.getElementById(id));
+    const el = document.getElementById(id);
+    const blank = document.createElement('option');
+    blank.value = ''; blank.textContent = '(자동인식)';
+    el.insertBefore(blank, el.firstChild);
+  });
+}
+document.getElementById('btnInboundColMap').addEventListener('click', () => {
+  prepareInboundColMapSelects();
+  const cm = appState.inboundColMap;
+  document.getElementById('inboundColDate').value = cm.date || '';
+  document.getElementById('inboundColVendor').value = cm.vendor || '';
+  document.getElementById('inboundColItem').value = cm.itemName || '';
+  document.getElementById('inboundColQty').value = cm.qty || '';
+  document.getElementById('inboundColAmount').value = cm.amount || '';
+  document.getElementById('inboundColStartRow').value = cm.startRow || 2;
+  showModal('inboundColMapModal');
+});
+document.getElementById('inboundColMapCancel').addEventListener('click', () => hideModal('inboundColMapModal'));
+document.getElementById('inboundColMapSave').addEventListener('click', () => {
+  appState.inboundColMap = {
+    date: document.getElementById('inboundColDate').value || '',
+    vendor: document.getElementById('inboundColVendor').value || '',
+    itemName: document.getElementById('inboundColItem').value || '',
+    qty: document.getElementById('inboundColQty').value || '',
+    amount: document.getElementById('inboundColAmount').value || '',
+    startRow: Number(document.getElementById('inboundColStartRow').value) || 2,
+  };
+  saveState();
+  hideModal('inboundColMapModal');
+  alert('저장했습니다. 다음 업로드부터 적용됩니다. 이미 업로드된 내역에 다시 적용하려면 초기화 후 재업로드하세요.');
+});
+
+document.getElementById('btnInboundReset').addEventListener('click', () => {
+  if (appState.inboundRows.length === 0 && appState.inboundUploadLog.length === 0) { alert('초기화할 내역이 없습니다.'); return; }
+  const ok = confirm('업로드된 세금계산서 내역과 업로드 기록을 모두 초기화합니다. 계속할까요?');
+  if (!ok) return;
+  appState.inboundRows = [];
+  appState.inboundUploadLog = [];
+  inboundSelectedDate = null;
+  saveState();
+  renderInbound();
+  alert('초기화되었습니다.');
+});
+
+function renderInboundUploadSummary() {
+  const area = document.getElementById('inboundUploadSummary');
+  const log = appState.inboundUploadLog;
+  if (!log || log.length === 0) {
+    area.classList.add('hidden');
+    area.innerHTML = '';
+    return;
+  }
+  const totals = log.reduce((acc, e) => {
+    acc.total += e.total; acc.success += e.success; acc.fail += e.fail;
+    return acc;
+  }, { total: 0, success: 0, fail: 0 });
+  area.classList.remove('hidden');
+  area.innerHTML = `세금계산서 ${fmtNum(totals.total)}건중 `
+    + `<span class="ouSuccess">${fmtNum(totals.success)}건 성공</span> `
+    + `<span class="ouFail">${fmtNum(totals.fail)}건 실패</span>`;
+}
+document.getElementById('inboundUploadSummary').addEventListener('dblclick', () => {
+  renderInboundUploadLogModal();
+  showModal('inboundUploadLogModal');
+});
+document.getElementById('inboundUploadLogClose').addEventListener('click', () => hideModal('inboundUploadLogModal'));
+function renderInboundUploadLogModal() {
+  const listEl = document.getElementById('inboundUploadLogList');
+  const emptyEl = document.getElementById('inboundUploadLogEmpty');
+  const log = appState.inboundUploadLog;
+  listEl.innerHTML = '';
+  if (log.length === 0) {
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+  [...log].reverse().forEach(entry => {
+    const div = document.createElement('div');
+    div.className = 'uploadLogLine';
+    const dateStr = entry.uploadedAt ? new Date(entry.uploadedAt).toLocaleString('ko-KR') : '';
+    div.innerHTML = `[${entry.fileName}] ${fmtNum(entry.total)}건중 `
+      + `<span class="okCount">${fmtNum(entry.success)}건 성공</span> `
+      + `<span class="failCount">${fmtNum(entry.fail)}건 실패</span>`
+      + (dateStr ? ` <span class="smallNote" style="display:inline;">(${dateStr})</span>` : '');
+    listEl.appendChild(div);
+  });
+}
+
+// 날짜(YYYY-MM-DD)를 키로 해당 날짜에 입고된(=날짜 인식에 성공한) 행들을 모은다
+function computeInboundByDate() {
+  const map = {};
+  appState.inboundRows.forEach(r => {
+    if (r.failed || !r.date) return;
+    (map[r.date] = map[r.date] || []).push(r);
+  });
+  return map;
+}
+
+function renderInboundCalendar() {
+  const byDate = computeInboundByDate();
+  const y = inboundViewYear, m = inboundViewMonth;
+  document.getElementById('inboundCalTitle').textContent = `${y}년 ${m + 1}월`;
+  document.getElementById('inboundMonthPicker').value = `${y}-${String(m + 1).padStart(2, '0')}`;
+
+  const firstOfMonth = new Date(y, m, 1);
+  const startOffset = firstOfMonth.getDay(); // 0=일요일
+  const daysInMonth = new Date(y, m + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+  const todayStr = formatDateYMD(new Date());
+  const monthPrefix = `${y}-${String(m + 1).padStart(2, '0')}`;
+
+  let monthTotalCount = 0, monthTotalAmount = 0;
+  Object.entries(byDate).forEach(([d, rows]) => {
+    if (d.slice(0, 7) === monthPrefix) {
+      monthTotalCount += rows.length;
+      rows.forEach(r => { monthTotalAmount += Number(r.amount) || 0; });
+    }
+  });
+  document.getElementById('inboundCalSummary').textContent =
+    `이번 달 입고 ${fmtNum(monthTotalCount)}건 · 합계 ${fmtNum(monthTotalAmount)}원`;
+
+  const weekCount = totalCells / 7;
+  // 헤더 행(요일)은 내용 높이만큼만, 나머지 주(week) 행들은 남는 세로 공간을 균등하게 나눠 갖도록 지정
+  document.getElementById('inboundCalGrid').style.gridTemplateRows = `auto repeat(${weekCount}, minmax(0, 1fr))`;
+
+  const body = document.getElementById('inboundCalBody');
+  body.innerHTML = '';
+  const cellDate = new Date(y, m, 1 - startOffset);
+
+  for (let i = 0; i < totalCells; i++) {
+    const dateStr = formatDateYMD(cellDate);
+    const isCurMonth = cellDate.getMonth() === m;
+    const cell = document.createElement('div');
+    cell.className = 'calDayCell';
+    if (!isCurMonth) cell.classList.add('otherMonth');
+    if (dateStr === todayStr) cell.classList.add('today');
+    if (dateStr === inboundSelectedDate) cell.classList.add('selectedDay');
+
+    const numSpan = document.createElement('span');
+    const dNum = cellDate.getDate();
+    if (dNum === 1) {
+      numSpan.className = 'dayNum monthMark';
+      numSpan.textContent = `${cellDate.getMonth() + 1}월 1`;
+    } else {
+      numSpan.className = 'dayNum';
+      numSpan.textContent = dNum;
+    }
+    cell.appendChild(numSpan);
+
+    const dayRows = byDate[dateStr] || [];
+    if (dayRows.length > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'dayBadge';
+      badge.textContent = `${dayRows.length}건`;
+      cell.appendChild(badge);
+      const preview = document.createElement('div');
+      preview.className = 'dayItemPreview';
+      const names = [...new Set(dayRows.map(r => r.itemName).filter(Boolean))];
+      preview.textContent = names.slice(0, 2).join(', ') + (names.length > 2 ? ` 외 ${names.length - 2}건` : '');
+      cell.appendChild(preview);
+    }
+
+    const clickDateStr = dateStr;
+    cell.addEventListener('click', () => {
+      inboundSelectedDate = clickDateStr;
+      renderInboundCalendar();
+      renderInboundDetail(clickDateStr);
+    });
+
+    body.appendChild(cell);
+    cellDate.setDate(cellDate.getDate() + 1);
+  }
+}
+
+function renderInboundDetail(dateStr) {
+  const titleEl = document.getElementById('inboundDetailTitle');
+  const listEl = document.getElementById('inboundDetailList');
+  const emptyEl = document.getElementById('inboundDetailEmpty');
+  listEl.innerHTML = '';
+  if (!dateStr) {
+    titleEl.textContent = '날짜를 선택하세요';
+    emptyEl.textContent = '달력에서 날짜를 클릭하면 그날 입고된 내역을 볼 수 있습니다.';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  const byDate = computeInboundByDate();
+  const rows = byDate[dateStr] || [];
+  titleEl.textContent = dateStr;
+  if (rows.length === 0) {
+    emptyEl.textContent = '해당 날짜에 입고 내역이 없습니다.';
+    emptyEl.classList.remove('hidden');
+    return;
+  }
+  emptyEl.classList.add('hidden');
+  let totalAmount = 0;
+  rows.forEach(r => {
+    totalAmount += Number(r.amount) || 0;
+    const div = document.createElement('div');
+    div.className = 'inboundDetailRow';
+    const qtyText = r.qty ? ` × ${fmtNum(r.qty)}` : '';
+    const amountText = r.amount ? `${fmtNum(r.amount)}원` : '';
+    const manualTag = r.manualEntry ? '<span class="idrManualTag">직접입력</span>' : '';
+    div.innerHTML = `<div class="idrVendor">${r.vendor || '(거래처 미상)'}${manualTag}</div>`
+      + `<div class="idrItem">${r.itemName || '(품목명 없음)'}${qtyText}</div>`
+      + (amountText ? `<div class="idrMeta">${amountText}</div>` : '');
+    listEl.appendChild(div);
+  });
+  const totalDiv = document.createElement('div');
+  totalDiv.className = 'inboundDetailRow';
+  totalDiv.style.fontWeight = 'bold';
+  totalDiv.innerHTML = `<div>합계 ${rows.length}건</div><div class="idrMeta">${fmtNum(totalAmount)}원</div>`;
+  listEl.appendChild(totalDiv);
+}
+
+document.getElementById('btnInboundPrevMonth').addEventListener('click', () => {
+  inboundViewMonth--;
+  if (inboundViewMonth < 0) { inboundViewMonth = 11; inboundViewYear--; }
+  renderInboundCalendar();
+});
+document.getElementById('btnInboundNextMonth').addEventListener('click', () => {
+  inboundViewMonth++;
+  if (inboundViewMonth > 11) { inboundViewMonth = 0; inboundViewYear++; }
+  renderInboundCalendar();
+});
+document.getElementById('btnInboundToday').addEventListener('click', () => {
+  const t = new Date();
+  inboundViewYear = t.getFullYear();
+  inboundViewMonth = t.getMonth();
+  renderInboundCalendar();
+});
+// 상단 "YYYY년 M월" 제목을 클릭하면 브라우저 기본 연월 선택 UI가 떠서 원하는 달로 바로 이동할 수 있다
+// (일부 브라우저는 투명 처리된 input 위를 단순 클릭하는 것만으로는 달력 팝업이 자동으로 뜨지 않으므로,
+//  showPicker()를 직접 호출해 클릭 시 확실히 열리도록 한다)
+document.getElementById('inboundMonthPicker').addEventListener('click', (e) => {
+  const picker = e.currentTarget;
+  if (typeof picker.showPicker === 'function') {
+    try { picker.showPicker(); } catch (err) { /* 브라우저가 지원하지 않으면 기본 클릭 동작에 맡김 */ }
+  }
+});
+document.getElementById('inboundMonthPicker').addEventListener('change', (e) => {
+  const val = e.target.value; // 'YYYY-MM'
+  if (!val) return;
+  const [y, m] = val.split('-').map(Number);
+  if (!y || !m) return;
+  inboundViewYear = y;
+  inboundViewMonth = m - 1;
+  renderInboundCalendar();
+});
+function renderInbound() {
+  renderInboundCalendar();
+  renderInboundDetail(inboundSelectedDate);
+  renderInboundUploadSummary();
+}
+
+/* ===================== 초기화 ===================== */
+document.getElementById('overlay').addEventListener('click', () => {
+  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal'].forEach(id => hideModal(id));
+});
+
+/* ===================== 접근 제한(비밀번호 잠금) =====================
+   참고: 이 파일은 서버 없이 동작하는 정적 HTML이라, 완전한 보안은 아닙니다.
+   비밀번호 문자열이 소스에 그대로 노출되지 않도록 가볍게 인코딩만 해두었습니다.
+   개발자도구로 코드를 분석하면 여전히 알아낼 수 있는 수준의 가벼운 조치입니다. */
+const _PW_KEY = 'sj9$vQ2Lm';
+const _PW_ENC = 'Q1gAHA==';
+function getAppPassword() {
+  const bin = atob(_PW_ENC);
+  let out = '';
+  for (let i = 0; i < bin.length; i++) {
+    out += String.fromCharCode(bin.charCodeAt(i) ^ _PW_KEY.charCodeAt(i % _PW_KEY.length));
+  }
+  return out;
+}
+
+// 비밀번호 입력에 성공하면 6시간 동안은 다시 묻지 않음
+const UNLOCK_STORAGE_KEY = 'autoSettleApp_unlockUntil';
+const UNLOCK_DURATION_MS = 6 * 60 * 60 * 1000; // 6시간
+
+function isUnlockedRecently() {
+  const raw = localStorage.getItem(UNLOCK_STORAGE_KEY);
+  if (!raw) return false;
+  const expiry = Number(raw);
+  return !isNaN(expiry) && Date.now() < expiry;
+}
+function markUnlocked() {
+  localStorage.setItem(UNLOCK_STORAGE_KEY, String(Date.now() + UNLOCK_DURATION_MS));
+}
+
+// 페이지를 새로고침하지 않고 열어둔 채로 있어도 시간이 지나면 자동으로 다시 잠기도록 처리
+let autoLockTimer = null;
+function lockNow() {
+  if (autoLockTimer) { clearTimeout(autoLockTimer); autoLockTimer = null; }
+  const lockScreen = document.getElementById('lockScreen');
+  if (lockScreen.classList.contains('hidden')) {
+    lockScreen.classList.remove('hidden');
+    document.getElementById('lockPassword').focus();
+  }
+}
+function scheduleAutoLock() {
+  if (autoLockTimer) clearTimeout(autoLockTimer);
+  const raw = localStorage.getItem(UNLOCK_STORAGE_KEY);
+  const expiry = raw ? Number(raw) : 0;
+  const remaining = expiry - Date.now();
+  if (remaining <= 0) { lockNow(); return; }
+  autoLockTimer = setTimeout(lockNow, remaining);
+}
+function checkLockStatus() {
+  if (!isUnlockedRecently()) lockNow();
+}
+
+function tryUnlock() {
+  const input = document.getElementById('lockPassword');
+  const errorEl = document.getElementById('lockError');
+  if (input.value === getAppPassword()) {
+    markUnlocked();
+    document.getElementById('lockScreen').classList.add('hidden');
+    input.value = '';
+    errorEl.textContent = '';
+    scheduleAutoLock();
+  } else {
+    errorEl.textContent = '비밀번호가 올바르지 않습니다.';
+    input.value = '';
+    input.focus();
+  }
+}
+document.getElementById('lockSubmit').addEventListener('click', tryUnlock);
+document.getElementById('lockPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); tryUnlock(); }
+});
+
+if (!isUnlockedRecently()) {
+  document.getElementById('lockScreen').classList.remove('hidden');
+  document.getElementById('lockPassword').focus();
+} else {
+  scheduleAutoLock();
+}
+// 탭이 백그라운드에 있는 동안 타이머가 지연될 수 있어, 다시 활성화되거나 일정 주기마다 실제 만료 여부를 재확인
+window.addEventListener('focus', checkLockStatus);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) checkLockStatus(); });
+setInterval(checkLockStatus, 30 * 1000);
+
+loadState();
+renderAll();
+</script>
+</body>
+</html>
