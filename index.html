@@ -356,6 +356,18 @@
     background: #2b3a55; color: #fff; font-size: 14px; cursor: pointer;
   }
   #lockSubmit:hover { background: #3f5273; }
+  /* ===== 서버 공유 저장 상태 표시 ===== */
+  #syncStatus { margin-left:auto; font-size:12px; color:#cfd6e4; white-space:nowrap; }
+  #syncLoading {
+    position:fixed; inset:0; z-index:9000; background:rgba(28,37,54,0.82);
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  #syncLoadingMsg { background:#fff; border-radius:8px; padding:20px 28px; font-size:14px; color:#2b3a55; font-weight:bold; max-width:460px; text-align:center; line-height:1.6; }
+  #syncToast {
+    position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:9100;
+    background:#7a1207; color:#fff; padding:12px 18px; border-radius:6px; font-size:13px;
+    max-width:560px; line-height:1.5; box-shadow:0 8px 24px rgba(0,0,0,0.3);
+  }
 </style>
 </head>
 <body>
@@ -374,7 +386,10 @@
   <button class="appTabBtn active" data-app="settlement">자동정산기</button>
   <button class="appTabBtn" data-app="production">생산량계산기</button>
   <button class="appTabBtn" data-app="inbound">입고일지</button>
+  <span id="syncStatus"></span>
 </div>
+<div id="syncLoading" class="hidden"><div id="syncLoadingMsg"></div></div>
+<div id="syncToast" class="hidden"></div>
 
 <div id="appSettlement" class="appScreen active">
 <div id="toolbar">
@@ -864,6 +879,18 @@
   </div>
 </div>
 
+<!-- 서버 공유 전환: 이 브라우저에만 저장돼 있던 기존 데이터 올리기 -->
+<div id="migrateModal" class="modal hidden">
+  <h2>이 컴퓨터에 저장돼 있던 기존 데이터</h2>
+  <div class="smallNote">이제 모든 사용자가 같은 서버 데이터를 함께 봅니다. 이 컴퓨터(브라우저)에만 저장돼 있던 아래 데이터를 공유 서버로 올릴까요? 서버에 이미 있는 데이터는 지워지지 않고 합쳐지며, 이 컴퓨터의 원본도 그대로 보관됩니다.</div>
+  <div id="migrateSummary" style="margin-top:10px;"></div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="migrateNever">올리지 않음</button>
+    <button class="btnGhost" id="migrateLater">나중에</button>
+    <button class="btnPrimary" id="migrateUpload">공유 서버로 올리기</button>
+  </div>
+</div>
+
 <script>
 /* ===================== 상태 & 유틸 ===================== */
 const STORAGE_KEY = 'autoSettleApp_v1';
@@ -907,10 +934,17 @@ function nextInvoiceLogId() {
 }
 
 function loadState() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) appState = JSON.parse(raw);
-  } catch (e) { console.warn('state load fail', e); }
+  // 서버 공유 모드에서는 이 브라우저의 localStorage가 아니라 서버에서 불러온다(startSync 참고)
+  if (!SERVER_MODE) {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) appState = JSON.parse(raw);
+    } catch (e) { console.warn('state load fail', e); }
+  }
+  normalizeState(appState);
+}
+function normalizeState(appState) {
+  if (!Array.isArray(appState.profiles)) appState.profiles = [];
   if (!appState.prodRows) appState.prodRows = []; // 이전 버전 데이터 호환
   if (!appState.prodUploadLog) appState.prodUploadLog = [];
   if (!appState.prodOverrides || typeof appState.prodOverrides !== 'object' || Array.isArray(appState.prodOverrides)) {
@@ -944,9 +978,444 @@ function loadState() {
   if (!appState.inboundColMap || typeof appState.inboundColMap !== 'object') {
     appState.inboundColMap = { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 };
   }
+  return appState;
 }
 function saveState() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+  if (!SERVER_MODE) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+    return;
+  }
+  // 현재 선택한 프로필은 사람마다 다르므로 공유하지 않고 이 브라우저에만 기억
+  try { localStorage.setItem(CURRENT_PROFILE_KEY, appState.currentProfileId || ''); } catch (e) { /* 저장 못 해도 동작에는 지장 없음 */ }
+  sync.dirty = true;
+  schedulePush();
+}
+
+/* ===================== 서버 공유 저장 =====================
+   웹(http/https)으로 접속하면 모든 사용자가 같은 서버 데이터를 본다 (/api, Cloudflare Pages Functions + D1).
+   파일을 직접 더블클릭해서 연 경우(file://)에는 예전처럼 이 컴퓨터의 localStorage에만 저장한다.
+
+   데이터는 "섹션" 단위로 주고받는다: prod(생산량계산기), inbound(입고일지), profile:<id>(거래처 프로필 1개).
+   섹션마다 버전 번호가 있어서, 내가 수정하는 사이 다른 사람이 같은 섹션을 먼저 저장했으면
+   서버가 저장을 거절(409)하고 최신 내용을 돌려준다 -> 서로의 수정을 모르고 덮어쓰는 일을 막는다. */
+const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
+const CURRENT_PROFILE_KEY = 'autoSettleApp_currentProfile';
+const TOKEN_STORAGE_KEY = 'autoSettleApp_token';
+const MIGRATION_FLAG_KEY = 'autoSettleApp_migratedToServer';
+const PROD_STATE_KEYS = ['prodRows', 'prodUploadLog', 'prodOverrides', 'prodRemovedRows'];
+const INBOUND_STATE_KEYS = ['inboundRows', 'inboundUploadLog', 'inboundColMap'];
+const PROFILE_SECTION_PREFIX = 'profile:';
+const PUSH_DELAY_MS = 800;
+const POLL_INTERVAL_MS = 5000;       // 다른 사람의 변경사항을 확인하는 주기
+const POLL_IDLE_INTERVAL_MS = 30000; // 2분 이상 조작이 없으면 확인 주기를 늦춘다
+const POLL_IDLE_AFTER_MS = 2 * 60 * 1000;
+
+const sync = {
+  ready: false,      // 서버에서 첫 데이터를 다 받아왔는지
+  starting: false,
+  versions: {},      // { 섹션키: 서버 버전 }
+  synced: {},        // { 섹션키: 서버와 일치하는 것으로 확인된 JSON 문자열 }
+  dirty: false,      // 아직 서버에 보내지 않은 변경이 있는지
+  pushing: false,
+  pulling: false,
+  pushTimer: null,
+  epoch: 0,          // 저장을 시작할 때마다 증가 - 그 전에 출발한 pull 응답은 버린다
+  pendingRefresh: null,
+  lastActivity: Date.now(),
+  lastPoll: 0,
+};
+
+function buildSections(state) {
+  const pick = (keys) => { const o = {}; keys.forEach(k => { o[k] = state[k]; }); return o; };
+  const out = {
+    prod: JSON.stringify(pick(PROD_STATE_KEYS)),
+    inbound: JSON.stringify(pick(INBOUND_STATE_KEYS)),
+  };
+  state.profiles.forEach(p => { out[PROFILE_SECTION_PREFIX + p.id] = JSON.stringify(p); });
+  return out;
+}
+function setLocalSection(key, obj) {
+  if (!obj || typeof obj !== 'object') return;
+  if (key === 'prod') {
+    PROD_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
+  } else if (key === 'inbound') {
+    INBOUND_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
+  } else if (key.startsWith(PROFILE_SECTION_PREFIX)) {
+    const id = key.slice(PROFILE_SECTION_PREFIX.length);
+    if (obj.id !== id) return;
+    const idx = appState.profiles.findIndex(p => p.id === id);
+    if (idx >= 0) appState.profiles[idx] = obj; else appState.profiles.push(obj);
+  }
+}
+function removeLocalSection(key) {
+  if (!key.startsWith(PROFILE_SECTION_PREFIX)) return;
+  const id = key.slice(PROFILE_SECTION_PREFIX.length);
+  appState.profiles = appState.profiles.filter(p => p.id !== id);
+}
+function fixCurrentProfile() {
+  if (appState.profiles.some(p => p.id === appState.currentProfileId)) return;
+  let saved = null;
+  try { saved = localStorage.getItem(CURRENT_PROFILE_KEY); } catch (e) { /* 무시 */ }
+  if (saved && appState.profiles.some(p => p.id === saved)) appState.currentProfileId = saved;
+  else appState.currentProfileId = appState.profiles.length > 0 ? appState.profiles[0].id : null;
+}
+
+function setSyncStatus(kind) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {
+    ok: ['● 서버에 저장됨', '#7fd69a'],
+    saving: ['● 저장 중…', '#ffd166'],
+    error: ['● 서버 연결 끊김 - 다시 시도 중', '#ff8a80'],
+    local: ['이 컴퓨터에만 저장됨(로컬 파일)', '#cfd6e4'],
+  };
+  el.textContent = map[kind][0];
+  el.style.color = map[kind][1];
+}
+let syncToastTimer = null;
+function showSyncToast(msg) {
+  const el = document.getElementById('syncToast');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  if (syncToastTimer) clearTimeout(syncToastTimer);
+  syncToastTimer = setTimeout(() => el.classList.add('hidden'), 8000);
+}
+function showSyncLoading(msg) {
+  document.getElementById('syncLoadingMsg').textContent = msg;
+  document.getElementById('syncLoading').classList.remove('hidden');
+}
+function hideSyncLoading() {
+  document.getElementById('syncLoading').classList.add('hidden');
+}
+
+function getStoredToken() {
+  try { return localStorage.getItem(TOKEN_STORAGE_KEY) || ''; } catch (e) { return ''; }
+}
+async function apiFetch(path, options) {
+  const opts = Object.assign({ cache: 'no-store' }, options);
+  opts.headers = Object.assign({}, opts.headers, { 'Authorization': 'Bearer ' + getStoredToken() });
+  const res = await fetch('/api/' + path, opts);
+  if (res.status === 401) {
+    // 로그인 유지 시간이 지났거나 비밀번호가 바뀜 -> 다시 잠금 (보내지 못한 변경은 메모리에 남아 있다가 잠금 해제 후 전송됨)
+    try { localStorage.removeItem(TOKEN_STORAGE_KEY); localStorage.removeItem(UNLOCK_STORAGE_KEY); } catch (e) { /* 무시 */ }
+    lockNow();
+    const err = new Error('unauthorized');
+    err.authRequired = true;
+    throw err;
+  }
+  return res;
+}
+
+// 사용자가 입력/선택 중일 때는 화면을 갈아엎지 않도록, 서버 변경사항 반영을 잠시 미룬다
+function isUserBusy() {
+  if (editingCell || isDragging || prodIsDragging) return true;
+  if (!document.getElementById('overlay').classList.contains('hidden')) return true;
+  if (['colFilterPopup', 'prodColFilterPopup', 'rowInsertMenu'].some(id => !document.getElementById(id).classList.contains('hidden'))) return true;
+  const el = document.activeElement;
+  if (el && el.id !== 'clipboardProxy' && el.id !== 'prodClipboardProxy' && el.id !== 'lockPassword') {
+    const typing = el.isContentEditable || el.tagName === 'TEXTAREA' || (el.tagName === 'INPUT' && el.type !== 'checkbox');
+    // 입력칸에 커서만 둔 채 자리를 비운 경우까지 계속 미루지는 않는다
+    if (typing && Date.now() - sync.lastActivity < 15000) return true;
+  }
+  return false;
+}
+
+function refreshAfterRemote(changedKeys, conflictKeys) {
+  if (!sync.ready || changedKeys.length === 0) return;
+  if (isUserBusy()) {
+    const pending = sync.pendingRefresh || { changed: [], conflicts: [] };
+    pending.changed.push(...changedKeys);
+    pending.conflicts.push(...conflictKeys);
+    sync.pendingRefresh = pending;
+    return;
+  }
+  if (changedKeys.some(k => k.startsWith(PROFILE_SECTION_PREFIX))) {
+    const sel = document.getElementById('profileSelect');
+    const shownId = sel.value || null;
+    if (shownId !== appState.currentProfileId || changedKeys.includes(PROFILE_SECTION_PREFIX + appState.currentProfileId)) renderAll();
+    else renderProfileSelect();
+  }
+  if (changedKeys.includes('prod') && document.getElementById('appProduction').classList.contains('active')) renderProduction();
+  if (changedKeys.includes('inbound') && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  if (conflictKeys.length > 0) {
+    showSyncToast('다른 사용자가 같은 내용을 먼저 수정해서, 방금 변경한 내용이 반영되지 않았습니다. 화면을 최신 내용으로 바꿨으니 확인 후 다시 입력해 주세요.');
+  }
+}
+function flushPendingRefresh() {
+  const pending = sync.pendingRefresh;
+  if (!pending || isUserBusy()) return;
+  sync.pendingRefresh = null;
+  refreshAfterRemote(pending.changed, pending.conflicts);
+}
+
+// 서버가 돌려준 변경분을 화면 데이터(appState)에 반영
+function applyRemote(data) {
+  const order = data.order || []; // [[섹션키, 버전], ...] 서버에 처음 만들어진 순서
+  const serverKeys = new Set(order.map(e => e[0]));
+  const before = buildSections(appState);
+  const changedKeys = [];
+  const conflictKeys = [];
+
+  Object.keys(sync.versions).forEach(key => {
+    if (serverKeys.has(key)) return;
+    // 다른 사용자가 삭제한 프로필
+    delete sync.versions[key];
+    delete sync.synced[key];
+    removeLocalSection(key);
+    changedKeys.push(key);
+  });
+  Object.entries(data.sections || {}).forEach(([key, sec]) => {
+    if (sync.synced[key] !== undefined && before[key] !== undefined && before[key] !== sync.synced[key]) conflictKeys.push(key);
+    setLocalSection(key, sec.data);
+    sync.versions[key] = sec.v;
+    changedKeys.push(key);
+  });
+  if (changedKeys.length === 0) return;
+
+  // 프로필 순서는 서버 기준(만든 순서). 아직 서버에 올라가지 않은 새 프로필은 맨 뒤.
+  const pos = new Map(order.map((e, i) => [e[0], i]));
+  const rank = (p) => pos.has(PROFILE_SECTION_PREFIX + p.id) ? pos.get(PROFILE_SECTION_PREFIX + p.id) : Number.MAX_SAFE_INTEGER;
+  appState.profiles.sort((a, b) => rank(a) - rank(b));
+
+  normalizeState(appState);
+  fixCurrentProfile();
+  const after = buildSections(appState);
+  changedKeys.forEach(key => { if (after[key] !== undefined) sync.synced[key] = after[key]; });
+  refreshAfterRemote(changedKeys, conflictKeys);
+}
+
+async function pullRemote() {
+  if (sync.pulling) return;
+  sync.pulling = true;
+  try {
+    let more = true;
+    while (more) {
+      const epoch = sync.epoch;
+      const res = await apiFetch('pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ known: sync.versions }),
+      });
+      if (!res.ok) {
+        const err = new Error('pull ' + res.status);
+        err.status = res.status;
+        throw err;
+      }
+      const data = await res.json();
+      // 받아오는 사이에 내가 저장을 시작했거나 입력을 시작했으면 이번 응답은 버리고 다음 주기에 다시 받는다
+      if (sync.ready && (epoch !== sync.epoch || sync.dirty || isUserBusy())) return;
+      applyRemote(data);
+      more = !!data.more;
+    }
+    if (sync.ready && !sync.dirty && !sync.pushing) setSyncStatus('ok');
+  } finally {
+    sync.pulling = false;
+  }
+}
+
+function schedulePush(delay) {
+  if (sync.pushTimer) clearTimeout(sync.pushTimer);
+  sync.pushTimer = setTimeout(() => { sync.pushTimer = null; pushDirty(); }, delay === undefined ? PUSH_DELAY_MS : delay);
+}
+function handlePushConflict(key, body) {
+  if (body && body.deleted) {
+    delete sync.versions[key];
+    delete sync.synced[key];
+    removeLocalSection(key);
+  } else {
+    setLocalSection(key, body.data);
+    sync.versions[key] = body.v;
+  }
+  normalizeState(appState);
+  fixCurrentProfile();
+  const after = buildSections(appState);
+  if (after[key] !== undefined) sync.synced[key] = after[key];
+  refreshAfterRemote([key], [key]);
+}
+// 바뀐 섹션만 골라 서버로 보낸다
+async function pushDirty() {
+  if (!sync.ready || !sync.dirty) return;
+  if (sync.pushing || isLocked()) return; // 끝나거나 잠금이 풀리면 다시 호출됨
+  sync.pushing = true;
+  sync.dirty = false;
+  sync.epoch++;
+  setSyncStatus('saving');
+  let failed = false;
+  try {
+    const cur = buildSections(appState);
+    for (const key of Object.keys(sync.synced)) {
+      if (key in cur) continue;
+      const res = await apiFetch('section?key=' + encodeURIComponent(key), { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete ' + res.status);
+      delete sync.synced[key];
+      delete sync.versions[key];
+    }
+    for (const key of Object.keys(cur)) {
+      if (cur[key] === sync.synced[key]) continue;
+      const res = await apiFetch('section?key=' + encodeURIComponent(key) + '&base=' + (sync.versions[key] || 0), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: cur[key],
+      });
+      if (res.ok) {
+        sync.versions[key] = (await res.json()).v;
+        sync.synced[key] = cur[key];
+      } else if (res.status === 409) {
+        handlePushConflict(key, await res.json());
+      } else {
+        throw new Error('save ' + res.status);
+      }
+    }
+  } catch (e) {
+    failed = true;
+    sync.dirty = true;
+    if (!e.authRequired) console.warn('서버 저장 실패', e);
+  } finally {
+    sync.pushing = false;
+  }
+  if (failed) {
+    setSyncStatus('error');
+    if (!isLocked()) schedulePush(5000);
+  } else if (sync.dirty) {
+    schedulePush(); // 보내는 동안 또 수정된 내용
+  } else {
+    setSyncStatus('ok');
+  }
+}
+
+// 잠금 해제 직후(또는 페이지를 열었을 때 이미 잠금 해제 상태면) 호출
+async function startSync() {
+  if (!SERVER_MODE || sync.starting) return;
+  if (sync.ready) {
+    // 다시 잠겼다가 풀린 경우: 밀린 변경을 보내거나 최신 내용을 받아온다
+    if (sync.dirty) schedulePush(0);
+    else pullRemote().catch(() => {});
+    return;
+  }
+  sync.starting = true;
+  showSyncLoading('서버에서 데이터를 불러오는 중…');
+  try {
+    await pullRemote();
+    fixCurrentProfile();
+    sync.ready = true;
+    hideSyncLoading();
+    setSyncStatus('ok');
+    renderAll();
+    if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
+    if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
+    offerLegacyMigration();
+  } catch (e) {
+    if (!e.authRequired) {
+      console.warn('서버 불러오기 실패', e);
+      showSyncLoading(e.status === 503
+        ? '서버 저장소 설정이 아직 완료되지 않았습니다. (관리자: Cloudflare에서 D1 바인딩 DB와 APP_PASSWORD 설정을 확인하세요)'
+        : '서버에 연결하지 못했습니다. 잠시 후 자동으로 다시 시도합니다.');
+      setTimeout(startSync, 5000);
+    }
+  } finally {
+    sync.starting = false;
+  }
+}
+
+/* ----- 이 브라우저에만 저장돼 있던 예전 데이터를 서버로 올리기 (브라우저마다 한 번만 물어봄) ----- */
+let legacyStateForMigration = null;
+function mergeUniqueItems(serverList, localList) {
+  const seen = new Set(serverList.map(x => JSON.stringify(x)));
+  return serverList.concat(localList.filter(x => !seen.has(JSON.stringify(x))));
+}
+function offerLegacyMigration() {
+  let legacy = null;
+  try {
+    if (localStorage.getItem(MIGRATION_FLAG_KEY)) return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) legacy = normalizeState(JSON.parse(raw));
+  } catch (e) { console.warn('예전 데이터 읽기 실패', e); return; }
+  if (!legacy) return;
+
+  const serverIds = new Set(appState.profiles.map(p => p.id));
+  const newProfiles = legacy.profiles.filter(p => p && p.id && !serverIds.has(p.id));
+  const lines = [];
+  if (newProfiles.length > 0) lines.push(`자동정산기 프로필 ${newProfiles.length}개: ${newProfiles.map(p => p.name).join(', ')}`);
+  if (legacy.prodRows.length > 0) lines.push(`생산량계산기 발주내역 ${fmtNum(legacy.prodRows.length)}건`);
+  if (Object.keys(legacy.prodOverrides).length > 0) lines.push(`생산량계산기 수동 매핑 ${Object.keys(legacy.prodOverrides).length}개`);
+  if (legacy.inboundRows.length > 0) lines.push(`입고일지 ${fmtNum(legacy.inboundRows.length)}건`);
+  if (lines.length === 0) return;
+
+  legacyStateForMigration = legacy;
+  const listEl = document.getElementById('migrateSummary');
+  listEl.innerHTML = '';
+  lines.forEach(text => {
+    const div = document.createElement('div');
+    div.className = 'priceRow';
+    div.textContent = text;
+    listEl.appendChild(div);
+  });
+  showModal('migrateModal');
+}
+function setMigrationFlag(value) {
+  try { localStorage.setItem(MIGRATION_FLAG_KEY, value); } catch (e) { /* 무시 */ }
+}
+function runLegacyMigration() {
+  const legacy = legacyStateForMigration;
+  legacyStateForMigration = null;
+  hideModal('migrateModal');
+  if (!legacy) return;
+
+  const serverIds = new Set(appState.profiles.map(p => p.id));
+  const serverNames = new Set(appState.profiles.map(p => p.name));
+  legacy.profiles.forEach(p => {
+    if (!p || !p.id || serverIds.has(p.id)) return;
+    if (serverNames.has(p.name)) p.name += ' (기존 PC 데이터)'; // 서버에 같은 이름의 프로필이 이미 있으면 구분되게 표시
+    appState.profiles.push(p);
+  });
+  appState.prodRows = mergeUniqueItems(appState.prodRows, legacy.prodRows);
+  appState.prodUploadLog = mergeUniqueItems(appState.prodUploadLog, legacy.prodUploadLog);
+  appState.prodRemovedRows = mergeUniqueItems(appState.prodRemovedRows, legacy.prodRemovedRows);
+  appState.prodOverrides = Object.assign({}, legacy.prodOverrides, appState.prodOverrides); // 겹치면 서버 쪽 우선
+  appState.inboundRows = mergeUniqueItems(appState.inboundRows, legacy.inboundRows);
+  appState.inboundUploadLog = mergeUniqueItems(appState.inboundUploadLog, legacy.inboundUploadLog);
+  const serverColMap = appState.inboundColMap;
+  if (!['date', 'vendor', 'itemName', 'qty', 'amount'].some(k => serverColMap[k])) appState.inboundColMap = legacy.inboundColMap;
+
+  fixCurrentProfile();
+  setMigrationFlag('uploaded');
+  saveState();
+  renderAll();
+  if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
+  if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
+}
+document.getElementById('migrateUpload').addEventListener('click', runLegacyMigration);
+document.getElementById('migrateLater').addEventListener('click', () => hideModal('migrateModal'));
+document.getElementById('migrateNever').addEventListener('click', () => {
+  if (!confirm('이 컴퓨터의 기존 데이터를 서버에 올리지 않고, 다시 묻지도 않습니다. 계속할까요?')) return;
+  setMigrationFlag('skipped');
+  hideModal('migrateModal');
+});
+
+if (SERVER_MODE) {
+  ['keydown', 'mousedown', 'input', 'touchstart'].forEach(type => {
+    document.addEventListener(type, () => { sync.lastActivity = Date.now(); }, true);
+  });
+  setInterval(() => {
+    if (!sync.ready || document.hidden || isLocked()) return;
+    flushPendingRefresh();
+    if (sync.dirty || sync.pushing || sync.pulling || isUserBusy()) return;
+    const interval = Date.now() - sync.lastActivity > POLL_IDLE_AFTER_MS ? POLL_IDLE_INTERVAL_MS : POLL_INTERVAL_MS;
+    if (Date.now() - sync.lastPoll < interval - 500) return;
+    sync.lastPoll = Date.now();
+    pullRemote().catch(e => { if (!e.authRequired) setSyncStatus('error'); });
+  }, POLL_INTERVAL_MS);
+  // 다른 창을 보다가 돌아오면 바로 최신 내용을 받아온다
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) { if (sync.dirty) schedulePush(0); return; }
+    if (!sync.ready || isLocked() || sync.dirty || sync.pushing || isUserBusy()) return;
+    sync.lastPoll = Date.now();
+    pullRemote().catch(e => { if (!e.authRequired) setSyncStatus('error'); });
+  });
+  // 아직 서버에 보내지 못한 변경이 있으면 창을 닫기 전에 경고
+  window.addEventListener('beforeunload', (e) => {
+    if (sync.dirty || sync.pushing) { e.preventDefault(); e.returnValue = ''; }
+  });
 }
 function getCurrentProfile() {
   return appState.profiles.find(p => p.id === appState.currentProfileId) || null;
@@ -4482,36 +4951,31 @@ function renderInbound() {
 
 /* ===================== 초기화 ===================== */
 document.getElementById('overlay').addEventListener('click', () => {
-  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal'].forEach(id => hideModal(id));
+  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal','migrateModal'].forEach(id => hideModal(id));
 });
 
 /* ===================== 접근 제한(비밀번호 잠금) =====================
-   참고: 이 파일은 서버 없이 동작하는 정적 HTML이라, 완전한 보안은 아닙니다.
-   비밀번호 문자열이 소스에 그대로 노출되지 않도록 가볍게 인코딩만 해두었습니다.
-   개발자도구로 코드를 분석하면 여전히 알아낼 수 있는 수준의 가벼운 조치입니다. */
-const _PW_KEY = 'sj9$vQ2Lm';
-const _PW_ENC = 'Q1gAHA==';
-function getAppPassword() {
-  const bin = atob(_PW_ENC);
-  let out = '';
-  for (let i = 0; i < bin.length; i++) {
-    out += String.fromCharCode(bin.charCodeAt(i) ^ _PW_KEY.charCodeAt(i % _PW_KEY.length));
-  }
-  return out;
-}
+   비밀번호는 이 파일에 들어 있지 않고 서버(/api/login, Cloudflare 환경 변수 APP_PASSWORD)가 확인합니다.
+   맞으면 서버가 6시간짜리 접속 토큰을 내주고, 이후 데이터 요청은 그 토큰이 있어야만 처리됩니다.
+   (파일을 직접 열어 쓰는 로컬 모드(file://)에서는 서버가 없으므로 잠금 없이 동작합니다.) */
 
-// 비밀번호 입력에 성공하면 6시간 동안은 다시 묻지 않음
+// 비밀번호 입력에 성공하면 6시간 동안은 다시 묻지 않음 (만료 시각은 서버가 정해서 내려줌)
 const UNLOCK_STORAGE_KEY = 'autoSettleApp_unlockUntil';
-const UNLOCK_DURATION_MS = 6 * 60 * 60 * 1000; // 6시간
 
 function isUnlockedRecently() {
+  if (!SERVER_MODE) return true;
+  if (!getStoredToken()) return false;
   const raw = localStorage.getItem(UNLOCK_STORAGE_KEY);
   if (!raw) return false;
   const expiry = Number(raw);
   return !isNaN(expiry) && Date.now() < expiry;
 }
-function markUnlocked() {
-  localStorage.setItem(UNLOCK_STORAGE_KEY, String(Date.now() + UNLOCK_DURATION_MS));
+function markUnlocked(token, expiresAt) {
+  localStorage.setItem(TOKEN_STORAGE_KEY, token);
+  localStorage.setItem(UNLOCK_STORAGE_KEY, String(expiresAt));
+}
+function isLocked() {
+  return !document.getElementById('lockScreen').classList.contains('hidden');
 }
 
 // 페이지를 새로고침하지 않고 열어둔 채로 있어도 시간이 지나면 자동으로 다시 잠기도록 처리
@@ -4525,6 +4989,7 @@ function lockNow() {
   }
 }
 function scheduleAutoLock() {
+  if (!SERVER_MODE) return;
   if (autoLockTimer) clearTimeout(autoLockTimer);
   const raw = localStorage.getItem(UNLOCK_STORAGE_KEY);
   const expiry = raw ? Number(raw) : 0;
@@ -4536,20 +5001,43 @@ function checkLockStatus() {
   if (!isUnlockedRecently()) lockNow();
 }
 
-function tryUnlock() {
+let unlockInProgress = false;
+async function tryUnlock() {
   const input = document.getElementById('lockPassword');
   const errorEl = document.getElementById('lockError');
-  if (input.value === getAppPassword()) {
-    markUnlocked();
-    document.getElementById('lockScreen').classList.add('hidden');
-    input.value = '';
-    errorEl.textContent = '';
-    scheduleAutoLock();
-  } else {
-    errorEl.textContent = '비밀번호가 올바르지 않습니다.';
-    input.value = '';
-    input.focus();
+  if (unlockInProgress || !input.value) return;
+  unlockInProgress = true;
+  errorEl.textContent = '확인 중…';
+  let message = '';
+  try {
+    const res = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: input.value }),
+      cache: 'no-store',
+    });
+    if (res.ok) {
+      const data = await res.json();
+      markUnlocked(data.token, data.expiresAt);
+      document.getElementById('lockScreen').classList.add('hidden');
+      scheduleAutoLock();
+      startSync();
+    } else if (res.status === 401) {
+      message = '비밀번호가 올바르지 않습니다.';
+    } else if (res.status === 429) {
+      message = '비밀번호를 여러 번 틀렸습니다. 10분 뒤에 다시 시도하세요.';
+    } else if (res.status === 503) {
+      message = '서버 설정이 아직 완료되지 않았습니다.';
+    } else {
+      message = '서버 오류가 발생했습니다. 잠시 후 다시 시도하세요.';
+    }
+  } catch (e) {
+    message = '서버에 연결할 수 없습니다. 인터넷 연결을 확인하세요.';
   }
+  unlockInProgress = false;
+  errorEl.textContent = message;
+  input.value = '';
+  if (message) input.focus();
 }
 document.getElementById('lockSubmit').addEventListener('click', tryUnlock);
 document.getElementById('lockPassword').addEventListener('keydown', (e) => {
@@ -4569,6 +5057,11 @@ setInterval(checkLockStatus, 30 * 1000);
 
 loadState();
 renderAll();
+if (SERVER_MODE) {
+  if (isUnlockedRecently()) startSync();
+} else {
+  setSyncStatus('local');
+}
 </script>
 </body>
 </html>
