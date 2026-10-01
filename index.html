@@ -183,10 +183,9 @@
   .journalDetailRow { background:#f5f8fd; border:1px solid #d5e0f2; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
   .journalEditBtn { float:right; background:#3f5273; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; }
   .journalEditBtn:hover { background:#4c6389; }
-  .journalFieldLabel { margin-top:6px; font-size:11px; font-weight:bold; color:#5b6b85; }
   .journalFieldText { white-space:pre-wrap; word-break:break-word; }
   .idrHolidayTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fbe2e0; color:#c0271a; font-size:10px; font-weight:bold; vertical-align:middle; }
-  .modal textarea, .modal input[type=time] {
+  .modal textarea {
     width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit;
   }
   .modal textarea { resize:vertical; }
@@ -910,18 +909,8 @@
 <div id="journalModal" class="modal hidden">
   <h2 id="journalModalTitle">일지</h2>
   <label class="journalCheckLabel"><input type="checkbox" id="journalHoliday"> 휴무일로 지정</label>
-  <div class="row2">
-    <div><label>퇴근시간</label><input type="time" id="journalOffTime"></div>
-    <div></div>
-  </div>
-  <label>재고</label>
-  <textarea id="journalStock" rows="3" placeholder="예: 밀가루 20포, 간장 5통"></textarea>
-  <label>입고</label>
-  <textarea id="journalInbound" rows="3" placeholder="예: 밀가루 50포 입고"></textarea>
-  <label>출고</label>
-  <textarea id="journalOutbound" rows="3" placeholder="예: 칼국수 120박스 출고"></textarea>
-  <label>메모</label>
-  <textarea id="journalMemo" rows="3" placeholder="그 밖에 남길 내용"></textarea>
+  <label>내용</label>
+  <textarea id="journalMemo" rows="10" placeholder="퇴근시간, 재고, 입고, 출고 등 그날의 내용을 자유롭게 적어주세요"></textarea>
   <div class="modalBtns" style="justify-content:space-between;">
     <button id="journalDelete" style="background:#8a2c2c;color:#fff;">일지 삭제</button>
     <div style="display:flex;gap:8px;margin-left:auto;">
@@ -979,7 +968,7 @@ let appState = {
   inboundColMap: { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 },
   prodDaily: { sig: '', summary: null, changedAt: 0, recorded: false }, // 생산량 정리내역의 현재 요약(맘푸드일지 자동 기록용)
   prodDailyRecords: [], // 맘푸드일지에 자동 기록된 날짜별 생산 요약
-  journal: {}, // 맘푸드일지: { 'YYYY-MM-DD': { holiday, offTime, stock, inbound, outbound, memo, updatedAt } }
+  journal: {}, // 맘푸드일지: { 'YYYY-MM-DD': { holiday, memo, updatedAt } }
 };
 
 let prodFixOrigName = null; // 인식현황 탭 "상품수정" 모달에서 현재 수정 중인 원본 상품명
@@ -1048,7 +1037,22 @@ function normalizeState(appState) {
   }
   if (!Array.isArray(appState.prodDailyRecords)) appState.prodDailyRecords = [];
   if (!appState.journal || typeof appState.journal !== 'object' || Array.isArray(appState.journal)) appState.journal = {};
+  normalizeJournal(appState.journal);
   return appState;
+}
+// 일지 입력칸이 퇴근시간/재고/입고/출고/메모로 나뉘어 있던 때에 저장된 내용을, 지금의 "내용" 한 칸(memo)으로 합친다
+function normalizeJournal(journal) {
+  Object.values(journal).forEach(entry => {
+    if (!entry || typeof entry !== 'object') return;
+    const parts = [];
+    if (entry.offTime) parts.push(`퇴근 ${entry.offTime}`);
+    [['stock', '재고'], ['inbound', '입고'], ['outbound', '출고']].forEach(([key, label]) => {
+      if (entry[key]) parts.push(`${label}: ${entry[key]}`);
+    });
+    if (parts.length > 0) entry.memo = parts.concat(entry.memo ? [entry.memo] : []).join('\n');
+    ['offTime', 'stock', 'inbound', 'outbound'].forEach(key => { delete entry[key]; });
+  });
+  return journal;
 }
 function saveState() {
   // 생산량 정리내역이 바뀌었는지, 06시 마감이 지났는지 저장할 때마다 함께 확인
@@ -1313,7 +1317,7 @@ function mergeJournalChanges(serverJournal) {
 }
 function handlePushConflict(key, body) {
   if (key === 'journal' && body && !body.deleted) {
-    const serverJournal = (body.data && body.data.journal) || {};
+    const serverJournal = normalizeJournal((body.data && body.data.journal) || {});
     appState.journal = mergeJournalChanges(serverJournal);
     sync.versions[key] = body.v;
     sync.synced[key] = JSON.stringify({ journal: serverJournal });
@@ -5061,15 +5065,8 @@ function renderInboundCalendar() {
         badge.textContent = '휴무';
         cell.appendChild(badge);
       }
-      const summaryText = journalCellSummary(journalEntry);
-      if (summaryText) {
-        const preview = document.createElement('div');
-        preview.className = 'dayItemPreview';
-        preview.textContent = summaryText;
-        cell.appendChild(preview);
-      }
       if (journalEntry.memo) {
-        // 메모 내용은 칸에 그대로 보여주고, 칸에 다 안 들어가면 fitCalendarMemos()가 줄 수를 맞춰 끝을 …로 줄인다
+        // 일지 내용은 칸에 그대로 보여주고, 칸에 다 안 들어가면 fitCalendarMemos()가 줄 수를 맞춰 끝을 …로 줄인다
         const memo = document.createElement('div');
         memo.className = 'dayMemoPreview';
         memo.textContent = journalEntry.memo.replace(/\s*\n\s*/g, '\n');
@@ -5279,14 +5276,8 @@ function renderInbound() {
 }
 
 /* ===================== 맘푸드일지: 날짜별 일지 (달력에서 날짜 더블클릭) =====================
-   퇴근시간 / 재고 / 입고 / 출고 / 메모를 날짜마다 적고, 휴무일로 지정할 수 있다.
-   appState.journal['YYYY-MM-DD'] 에 저장되며, 아무 내용도 없으면 그 날짜 항목 자체를 지운다. */
-const JOURNAL_TEXT_FIELDS = [
-  { key: 'stock', label: '재고', inputId: 'journalStock' },
-  { key: 'inbound', label: '입고', inputId: 'journalInbound' },
-  { key: 'outbound', label: '출고', inputId: 'journalOutbound' },
-  { key: 'memo', label: '메모', inputId: 'journalMemo' },
-];
+   날짜마다 내용(퇴근시간, 재고, 입고, 출고 등을 자유롭게 적는 한 칸)을 적고, 휴무일로 지정할 수 있다.
+   appState.journal['YYYY-MM-DD'] = { holiday, memo } 로 저장되며, 아무 내용도 없으면 그 날짜 항목 자체를 지운다. */
 let journalEditingDate = null;
 let lastCalClick = { date: null, time: 0 }; // 달력 칸 더블클릭 판단용
 
@@ -5294,21 +5285,12 @@ function journalDateLabel(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return `${dateStr} (${['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()]})`;
 }
-// 달력 칸에 보여줄 한 줄 요약 (예: "퇴근 18:30 · 재고·입고"). 메모는 내용 자체를 칸에 따로 보여주므로 여기서는 뺀다.
-function journalCellSummary(entry) {
-  const parts = [];
-  if (entry.offTime) parts.push(`퇴근 ${entry.offTime}`);
-  const filled = JOURNAL_TEXT_FIELDS.filter(f => f.key !== 'memo' && entry[f.key]).map(f => f.label);
-  if (filled.length > 0) parts.push(filled.join('·'));
-  return parts.join(' · ');
-}
 function openJournalModal(dateStr) {
   journalEditingDate = dateStr;
   const entry = appState.journal[dateStr] || {};
   document.getElementById('journalModalTitle').textContent = `${journalDateLabel(dateStr)} 일지`;
   document.getElementById('journalHoliday').checked = !!entry.holiday;
-  document.getElementById('journalOffTime').value = entry.offTime || '';
-  JOURNAL_TEXT_FIELDS.forEach(f => { document.getElementById(f.inputId).value = entry[f.key] || ''; });
+  document.getElementById('journalMemo').value = entry.memo || '';
   document.getElementById('journalDelete').classList.toggle('hidden', !appState.journal[dateStr]);
   showModal('journalModal');
 }
@@ -5321,8 +5303,7 @@ function journalModalHasChanges() {
   if (!journalEditingDate) return false;
   const entry = appState.journal[journalEditingDate] || {};
   if (document.getElementById('journalHoliday').checked !== !!entry.holiday) return true;
-  if (document.getElementById('journalOffTime').value !== (entry.offTime || '')) return true;
-  return JOURNAL_TEXT_FIELDS.some(f => document.getElementById(f.inputId).value.trim() !== (entry[f.key] || ''));
+  return document.getElementById('journalMemo').value.trim() !== (entry.memo || '');
 }
 document.getElementById('journalCancel').addEventListener('click', () => {
   if (journalModalHasChanges() && !confirm('입력한 내용을 저장하지 않고 닫을까요?')) return;
@@ -5331,10 +5312,8 @@ document.getElementById('journalCancel').addEventListener('click', () => {
 document.getElementById('journalSave').addEventListener('click', () => {
   const dateStr = journalEditingDate;
   if (!dateStr) return;
-  const entry = { holiday: document.getElementById('journalHoliday').checked, offTime: document.getElementById('journalOffTime').value || '' };
-  JOURNAL_TEXT_FIELDS.forEach(f => { entry[f.key] = document.getElementById(f.inputId).value.trim(); });
-  const isEmpty = !entry.holiday && !entry.offTime && JOURNAL_TEXT_FIELDS.every(f => !entry[f.key]);
-  if (isEmpty) {
+  const entry = { holiday: document.getElementById('journalHoliday').checked, memo: document.getElementById('journalMemo').value.trim() };
+  if (!entry.holiday && !entry.memo) {
     delete appState.journal[dateStr];
   } else {
     entry.updatedAt = Date.now();
@@ -5383,18 +5362,12 @@ function buildJournalDetail(dateStr) {
     wrap.appendChild(note);
     return wrap;
   }
-  const addField = (label, text) => {
-    const labelEl = document.createElement('div');
-    labelEl.className = 'journalFieldLabel';
-    labelEl.textContent = label;
+  if (entry.memo) {
     const textEl = document.createElement('div');
     textEl.className = 'journalFieldText';
-    textEl.textContent = text;
-    wrap.appendChild(labelEl);
+    textEl.textContent = entry.memo;
     wrap.appendChild(textEl);
-  };
-  if (entry.offTime) addField('퇴근시간', entry.offTime);
-  JOURNAL_TEXT_FIELDS.forEach(f => { if (entry[f.key]) addField(f.label, entry[f.key]); });
+  }
   return wrap;
 }
 
