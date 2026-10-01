@@ -204,6 +204,9 @@
   .prodRecordRow .delBtn { margin-left:4px; }
   .idrAutoTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fff3cd; color:#8a5a1f; font-size:10px; font-weight:bold; vertical-align:middle; }
   /* 세금계산서 매출/매입 표시 */
+  .taxLineGroup { flex:0 0 auto; }
+  .taxMore { margin-top:2px; font-size:10px; color:#888; }
+  .calDayCell.otherMonth .taxMore { color:#aeb2b8; }
   .dayBadge.salesBadge { background:#dce8fb; color:#1c4f9c; }
   .dayBadge.purchaseBadge { background:#f7ead9; color:#8a5a1f; }
   .idrTaxTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; font-size:10px; font-weight:bold; vertical-align:middle; }
@@ -5148,7 +5151,7 @@ function renderInboundCalendar() {
     }
 
     const dayRows = byDate[dateStr] || [];
-    // 세금계산서: 매출/매입별로 건수와 "업체명 금액"(첫 건 + 외 N건)을 보여준다
+    // 세금계산서: 매출/매입별로 건수를 보여주고, 그 아래에 "업체명 금액"을 한 건에 한 줄씩 적는다
     ['sales', 'purchase'].forEach(type => {
       const taxRows = dayRows.filter(r => r.taxType === type);
       if (taxRows.length === 0) return;
@@ -5156,11 +5159,19 @@ function renderInboundCalendar() {
       badge.className = `dayBadge ${type}Badge`;
       badge.textContent = `${TAX_TYPE_LABEL[type]} ${taxRows.length}건`;
       cell.appendChild(badge);
-      const preview = document.createElement('div');
-      preview.className = 'dayItemPreview';
-      preview.textContent = `${taxRows[0].vendor || '(업체명 없음)'} ${fmtNum(taxRows[0].amount)}원`
-        + (taxRows.length > 1 ? ` 외 ${taxRows.length - 1}건` : '');
-      cell.appendChild(preview);
+      const group = document.createElement('div');
+      group.className = 'taxLineGroup';
+      taxRows.forEach(r => {
+        const line = document.createElement('div');
+        line.className = 'dayItemPreview taxLine';
+        line.textContent = `${r.vendor || '(업체명 없음)'} ${fmtNum(r.amount)}원`;
+        group.appendChild(line);
+      });
+      // 칸에 다 못 들어갈 때만 fitCalendarTaxLines()가 켜는 안내 줄
+      const more = document.createElement('div');
+      more.className = 'taxMore hidden';
+      group.appendChild(more);
+      cell.appendChild(group);
     });
     // 그 밖의 내역(직접입력, 예전에 엑셀로 올린 입고 내역)
     const otherRows = dayRows.filter(r => !r.taxType);
@@ -5203,11 +5214,54 @@ function renderInboundCalendar() {
     body.appendChild(cell);
     cellDate.setDate(cellDate.getDate() + 1);
   }
+  fitCalendarCells();
+}
+
+// 달력 칸에 내용이 다 들어가도록 맞춘다. 칸 높이는 창 크기와 그 달의 주 수에 따라 달라지므로,
+// 그릴 때마다(그리고 창 크기가 바뀔 때) 다시 계산한다.
+function fitCalendarCells() {
+  // 메모는 일단 한 줄로 되돌려 놓고 세금계산서 줄부터 맞춘 뒤, 남는 공간을 메모에 준다
+  document.querySelectorAll('#inboundCalBody .dayMemoPreview').forEach(memo => { memo.style.webkitLineClamp = '1'; });
+  fitCalendarTaxLines();
   fitCalendarMemos();
 }
 
+// 세금계산서는 한 건에 한 줄씩 보여주는데, 건수가 많아 칸을 넘치면 넘치는 줄은 감추고
+// "+N건 더 있음"으로 알려준다. (전체 목록은 날짜를 누르면 오른쪽에 나온다)
+function fitCalendarTaxLines() {
+  document.querySelectorAll('#inboundCalBody .calDayCell').forEach(cell => {
+    const groups = Array.from(cell.querySelectorAll('.taxLineGroup'));
+    if (groups.length === 0) return;
+    groups.forEach(g => {
+      g.querySelectorAll('.taxLine').forEach(line => line.classList.remove('hidden'));
+      g.querySelector('.taxMore').classList.add('hidden');
+    });
+    if (cell.clientHeight === 0) return; // 달력이 화면에 보이지 않는 상태
+    while (cell.scrollHeight > cell.clientHeight + 1) {
+      // 보이는 줄이 가장 많은 쪽(매출/매입)에서 마지막 줄부터 감춘다. 각각 최소 한 줄은 남긴다.
+      let target = null, most = 1;
+      groups.forEach(g => {
+        const visible = g.querySelectorAll('.taxLine:not(.hidden)').length;
+        if (visible > most) { most = visible; target = g; }
+      });
+      if (!target) break;
+      const visibleLines = target.querySelectorAll('.taxLine:not(.hidden)');
+      visibleLines[visibleLines.length - 1].classList.add('hidden');
+      const more = target.querySelector('.taxMore');
+      more.textContent = `+${target.querySelectorAll('.taxLine.hidden').length}건 더 있음`;
+      more.classList.remove('hidden');
+    }
+    // 한 줄만 감춘 경우에는 안내 줄이 그 자리를 그대로 차지해서 얻는 게 없으므로, 그냥 그 줄을 보여준다
+    groups.forEach(g => {
+      const hiddenLines = g.querySelectorAll('.taxLine.hidden');
+      if (hiddenLines.length !== 1) return;
+      hiddenLines[0].classList.remove('hidden');
+      g.querySelector('.taxMore').classList.add('hidden');
+    });
+  });
+}
+
 // 달력 칸의 메모 미리보기를, 그 칸에 남는 높이만큼의 줄 수로 제한한다(넘치는 부분은 CSS가 …로 표시).
-// 칸 높이는 창 크기와 그 달의 주 수에 따라 달라지므로, 그릴 때마다(그리고 창 크기가 바뀔 때) 다시 계산한다.
 function fitCalendarMemos() {
   document.querySelectorAll('#inboundCalBody .dayMemoPreview').forEach(memo => {
     const cell = memo.parentElement;
@@ -5229,7 +5283,7 @@ let calendarResizeTimer = null;
 window.addEventListener('resize', () => {
   if (calendarResizeTimer) clearTimeout(calendarResizeTimer);
   calendarResizeTimer = setTimeout(() => {
-    if (document.getElementById('appInbound').classList.contains('active')) fitCalendarMemos();
+    if (document.getElementById('appInbound').classList.contains('active')) fitCalendarCells();
   }, 150);
 });
 
