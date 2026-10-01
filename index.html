@@ -158,6 +158,12 @@
   .calDayCell.otherMonth .dayItemPreview { color:#aeb2b8; }
   .dayBadge { display:inline-block; margin-top:4px; padding:1px 6px; border-radius:8px; background:#e3f5e6; color:#1e7a35; font-size:10px; font-weight:bold; }
   .dayItemPreview { margin-top:3px; font-size:10px; color:#666; line-height:1.4; word-break:break-all; }
+  /* 일지 메모 미리보기: 보여줄 줄 수(-webkit-line-clamp)는 fitCalendarMemos()가 칸 높이에 맞춰 정하고, 넘치면 끝이 …로 표시된다 */
+  .dayMemoPreview {
+    margin-top:3px; font-size:10px; color:#333; line-height:1.4; word-break:break-all; white-space:pre-line;
+    flex:0 0 auto; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1;
+  }
+  .calDayCell.otherMonth .dayMemoPreview { color:#aeb2b8; }
   #inboundDetailArea { width:320px; flex:0 0 auto; border-left:1px solid #ddd; padding:14px; overflow:auto; background:#fff; }
   .inboundDetailRow { padding:8px 0; border-bottom:1px solid #eee; font-size:12px; }
   .inboundDetailRow .idrVendor { font-weight:bold; color:#2b3a55; }
@@ -5054,15 +5060,24 @@ function renderInboundCalendar() {
         cell.appendChild(badge);
       }
       const summaryText = journalCellSummary(journalEntry);
-      if (summaryText) {
+      if (summaryText || journalEntry.memo) {
         const badge = document.createElement('div');
         badge.className = 'dayBadge journalBadge';
         badge.textContent = '일지';
         cell.appendChild(badge);
+      }
+      if (summaryText) {
         const preview = document.createElement('div');
         preview.className = 'dayItemPreview';
         preview.textContent = summaryText;
         cell.appendChild(preview);
+      }
+      if (journalEntry.memo) {
+        // 메모 내용은 칸에 그대로 보여주고, 칸에 다 안 들어가면 fitCalendarMemos()가 줄 수를 맞춰 끝을 …로 줄인다
+        const memo = document.createElement('div');
+        memo.className = 'dayMemoPreview';
+        memo.textContent = journalEntry.memo.replace(/\s*\n\s*/g, '\n');
+        cell.appendChild(memo);
       }
     }
 
@@ -5106,7 +5121,35 @@ function renderInboundCalendar() {
     body.appendChild(cell);
     cellDate.setDate(cellDate.getDate() + 1);
   }
+  fitCalendarMemos();
 }
+
+// 달력 칸의 메모 미리보기를, 그 칸에 남는 높이만큼의 줄 수로 제한한다(넘치는 부분은 CSS가 …로 표시).
+// 칸 높이는 창 크기와 그 달의 주 수에 따라 달라지므로, 그릴 때마다(그리고 창 크기가 바뀔 때) 다시 계산한다.
+function fitCalendarMemos() {
+  document.querySelectorAll('#inboundCalBody .dayMemoPreview').forEach(memo => {
+    const cell = memo.parentElement;
+    const cellStyle = getComputedStyle(cell);
+    const outerHeight = (el) => {
+      const cs = getComputedStyle(el);
+      return el.offsetHeight + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0);
+    };
+    let othersHeight = 0;
+    Array.from(cell.children).forEach(child => { if (child !== memo) othersHeight += outerHeight(child); });
+    const memoStyle = getComputedStyle(memo);
+    const lineHeight = parseFloat(memoStyle.lineHeight) || 14;
+    const available = cell.clientHeight - (parseFloat(cellStyle.paddingTop) || 0) - (parseFloat(cellStyle.paddingBottom) || 0)
+      - othersHeight - (parseFloat(memoStyle.marginTop) || 0);
+    memo.style.webkitLineClamp = String(Math.max(1, Math.floor(available / lineHeight))); // 공간이 모자라도 최소 한 줄은 보여준다
+  });
+}
+let calendarResizeTimer = null;
+window.addEventListener('resize', () => {
+  if (calendarResizeTimer) clearTimeout(calendarResizeTimer);
+  calendarResizeTimer = setTimeout(() => {
+    if (document.getElementById('appInbound').classList.contains('active')) fitCalendarMemos();
+  }, 150);
+});
 
 // 선택한 날짜의 생산 자동 기록을 상세 패널용 블록으로 만든다
 function buildProdRecordDetail(rec) {
@@ -5255,11 +5298,11 @@ function journalDateLabel(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return `${dateStr} (${['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()]})`;
 }
-// 달력 칸에 보여줄 한 줄 요약 (예: "퇴근 18:30 · 재고·입고")
+// 달력 칸에 보여줄 한 줄 요약 (예: "퇴근 18:30 · 재고·입고"). 메모는 내용 자체를 칸에 따로 보여주므로 여기서는 뺀다.
 function journalCellSummary(entry) {
   const parts = [];
   if (entry.offTime) parts.push(`퇴근 ${entry.offTime}`);
-  const filled = JOURNAL_TEXT_FIELDS.filter(f => entry[f.key]).map(f => f.label);
+  const filled = JOURNAL_TEXT_FIELDS.filter(f => f.key !== 'memo' && entry[f.key]).map(f => f.label);
   if (filled.length > 0) parts.push(filled.join('·'));
   return parts.join(' · ');
 }
