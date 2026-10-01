@@ -198,6 +198,14 @@
   .prodRecordRow summary { cursor:pointer; color:#8a5a1f; font-size:11px; }
   .prodRecordRow .delBtn { margin-left:4px; }
   .idrAutoTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fff3cd; color:#8a5a1f; font-size:10px; font-weight:bold; vertical-align:middle; }
+  /* 세금계산서 매출/매입 표시 */
+  .dayBadge.salesBadge { background:#dce8fb; color:#1c4f9c; }
+  .dayBadge.purchaseBadge { background:#f7ead9; color:#8a5a1f; }
+  .idrTaxTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; font-size:10px; font-weight:bold; vertical-align:middle; }
+  .idrTaxTag.sales { background:#dce8fb; color:#1c4f9c; }
+  .idrTaxTag.purchase { background:#f7ead9; color:#8a5a1f; }
+  .idrDelBtn { float:right; background:transparent; color:#a33; border:1px solid #e3b5b5; border-radius:4px; padding:1px 7px; font-size:10px; font-weight:normal; cursor:pointer; }
+  .idrDelBtn:hover { background:#e05353; color:#fff; border-color:#e05353; }
   .idrManualTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#efe6f7; color:#6b4c9a; font-size:10px; font-weight:bold; vertical-align:middle; }
 
   /* 세금계산서 직접입력 모달 안의 소형 날짜 선택용 달력 */
@@ -609,9 +617,9 @@
 
 <div id="appInbound" class="appScreen active">
   <div id="inboundToolbar">
-    <button id="btnInboundUpload">세금계산서업로드</button>
+    <button id="btnTaxSales" style="background:#2f6fb0;" title="홈택스에서 내려받은 매출 전자세금계산서 XML 파일을 선택합니다">세금계산서(매출)</button>
+    <button id="btnTaxPurchase" style="background:#8a5a1f;" title="홈택스에서 내려받은 매입 전자세금계산서 XML 파일을 선택합니다">세금계산서(매입)</button>
     <button id="btnInboundManual" style="background:#6b4c9a;">직접입력</button>
-    <button id="btnInboundColMap" style="background:#4b5d78;">열 매핑 설정</button>
     <button id="btnInboundReset" style="background:#7a4d1f;">초기화</button>
     <div id="inboundUploadSummary" class="hidden"></div>
   </div>
@@ -674,7 +682,7 @@
 <input type="file" id="prodFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
 
 <input type="file" id="invoiceFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
-<input type="file" id="inboundFileInput" accept=".xlsx,.xls,.csv" multiple style="display:none">
+<input type="file" id="taxXmlInput" accept=".xml,text/xml,application/xml" multiple style="display:none">
 <input type="text" id="clipboardProxy" autocomplete="off" style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px; opacity:0; border:none; padding:0;">
 <input type="text" id="prodClipboardProxy" autocomplete="off" style="position:fixed; top:-1000px; left:-1000px; width:1px; height:1px; opacity:0; border:none; padding:0;">
 
@@ -922,28 +930,6 @@
   </div>
 </div>
 
-<!-- 맘푸드일지: 세금계산서 열 매핑 설정 모달 -->
-<div id="inboundColMapModal" class="modal hidden">
-  <h2>세금계산서 열 매핑 설정</h2>
-  <div class="smallNote">칸을 비워두면 업로드하는 파일의 헤더에서 자동으로 열을 찾습니다. 자동인식이 잘못될 때만 직접 지정하세요.</div>
-  <div class="row2">
-    <div><label>날짜 열 (기본값-자동인식)</label><select id="inboundColDate"></select></div>
-    <div><label>거래처(공급자) 열 (기본값-자동인식)</label><select id="inboundColVendor"></select></div>
-  </div>
-  <div class="row2">
-    <div><label>품목명 열 (기본값-자동인식)</label><select id="inboundColItem"></select></div>
-    <div><label>수량 열 (기본값-자동인식)</label><select id="inboundColQty"></select></div>
-  </div>
-  <div class="row2">
-    <div><label>금액 열 (기본값-자동인식)</label><select id="inboundColAmount"></select></div>
-    <div><label>데이터 시작 행</label><input type="number" id="inboundColStartRow" value="2" min="1"></div>
-  </div>
-  <div class="modalBtns">
-    <button class="btnGhost" id="inboundColMapCancel">취소</button>
-    <button class="btnPrimary" id="inboundColMapSave">저장</button>
-  </div>
-</div>
-
 <!-- 맘푸드일지: 날짜별 일지 작성 모달 (달력에서 날짜를 더블클릭하면 열림) -->
 <div id="journalModal" class="modal hidden">
   <h2 id="journalModalTitle">일지</h2>
@@ -1119,6 +1105,7 @@ const CURRENT_PROFILE_KEY = 'autoSettleApp_currentProfile';
 const TOKEN_STORAGE_KEY = 'autoSettleApp_token';
 const MIGRATION_FLAG_KEY = 'autoSettleApp_migratedToServer';
 const PROD_STATE_KEYS = ['prodRows', 'prodUploadLog', 'prodOverrides', 'prodRemovedRows'];
+// inboundColMap은 예전 엑셀 업로드용 설정으로 지금은 쓰지 않지만, 이미 저장된 데이터와 형식을 맞추기 위해 그대로 둔다
 const INBOUND_STATE_KEYS = ['inboundRows', 'inboundUploadLog', 'inboundColMap'];
 const PRODDAILY_STATE_KEYS = ['prodDaily', 'prodDailyRecords'];
 const JOURNAL_STATE_KEYS = ['journal'];
@@ -1655,14 +1642,6 @@ function resolveProductNameColIdx(letterOrBlank, aoa, startRow) {
   if (letterOrBlank) return colToIdx(letterOrBlank);
   return findSmartColIdx(aoa, startRow, PRODUCT_NAME_KEYWORDS, PRODUCT_NAME_EXCLUDE);
 }
-
-/* ===================== 맘푸드일지 ===================== */
-const INBOUND_DATE_KEYWORDS = ['작성일자', '발급일자', '거래일자', '승인일자', '일자'];
-const INBOUND_VENDOR_KEYWORDS = ['공급자상호', '거래처명', '거래처', '상호'];
-const INBOUND_VENDOR_EXCLUDE = ['공급받는자'];
-const INBOUND_ITEM_KEYWORDS = ['품목명', '품명', '품목'];
-const INBOUND_QTY_KEYWORDS = ['수량'];
-const INBOUND_AMOUNT_KEYWORDS = ['공급가액', '합계금액', '금액'];
 
 // 열 지정값(letter 또는 빈값)을 실제 열 인덱스로 변환한다. 빈값이면 헤더 우선순위 키워드 + 데이터 채움 비율 기반으로 자동 감지한다.
 // (맘푸드일지, 자동정산기 송장업로드 등 여러 모듈에서 공용으로 사용)
@@ -4831,70 +4810,150 @@ let inboundViewYear = _todayForInbound.getFullYear();
 let inboundViewMonth = _todayForInbound.getMonth(); // 0~11
 let inboundSelectedDate = null; // 'YYYY-MM-DD'
 
-document.getElementById('btnInboundUpload').addEventListener('click', () => {
-  document.getElementById('inboundFileInput').click();
+/* ----- 홈택스 전자세금계산서 XML 업로드 -----
+   [세금계산서(매출)] / [세금계산서(매입)] 버튼으로 홈택스에서 내려받은 XML 파일(여러 개 선택 가능)을 읽어,
+   발행일(작성일자) 칸에 "업체명 · 금액 (매출/매입)"으로 기록한다.
+   업체명은 거래 상대방의 상호다: 매출이면 공급받는자(InvoiceeParty), 매입이면 공급자(InvoicerParty).
+   금액은 합계금액(GrandTotalAmount = 공급가액 + 세액)이며, 공급가액과 세액도 함께 보관한다. */
+const TAX_TYPE_LABEL = { sales: '매출', purchase: '매입' };
+let taxUploadType = 'sales'; // 어느 버튼으로 파일 선택창을 열었는지
+
+// XML은 네임스페이스가 붙어 있으므로 태그 이름(localName)만으로 바로 아래 자식을 찾는다
+function xmlChild(el, name) {
+  return el ? Array.from(el.children).find(c => c.localName === name) || null : null;
+}
+function xmlText(el, ...path) {
+  let cur = el;
+  for (const name of path) cur = xmlChild(cur, name);
+  return cur ? cur.textContent.trim() : '';
+}
+// 파일 첫 줄의 encoding 선언(UTF-8, EUC-KR 등)에 맞춰 글자를 읽는다
+async function readXmlFileText(file) {
+  const buf = await file.arrayBuffer();
+  const head = new TextDecoder('utf-8').decode(buf.slice(0, 200));
+  const m = head.match(/encoding\s*=\s*["']([\w-]+)["']/i);
+  try {
+    return new TextDecoder(m ? m[1].toLowerCase() : 'utf-8').decode(buf);
+  } catch (e) {
+    return new TextDecoder('utf-8').decode(buf);
+  }
+}
+// XML 문자열에서 세금계산서를 모두 꺼낸다(파일 하나에 여러 장이 들어 있어도 처리). 세금계산서가 아니면 빈 배열.
+function parseTaxInvoiceXml(text, taxType) {
+  const doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length > 0) throw new Error('XML 형식 오류');
+  return Array.from(doc.getElementsByTagNameNS('*', 'TaxInvoice')).map(inv => {
+    const settlement = xmlChild(inv, 'TaxInvoiceTradeSettlement');
+    const invoicer = xmlChild(settlement, 'InvoicerParty'); // 공급자
+    const invoicee = xmlChild(settlement, 'InvoiceeParty'); // 공급받는자
+    const counterpart = taxType === 'sales' ? invoicee : invoicer;
+    const self = taxType === 'sales' ? invoicer : invoicee;
+    const summation = xmlChild(settlement, 'SpecifiedMonetarySummation');
+    const supplyAmount = Number(xmlText(summation, 'ChargeTotalAmount')) || 0;
+    const taxAmount = Number(xmlText(summation, 'TaxTotalAmount')) || 0;
+    const grandText = xmlText(summation, 'GrandTotalAmount');
+    const itemNames = Array.from(inv.children).filter(c => c.localName === 'TaxInvoiceTradeLineItem')
+      .map(li => xmlText(li, 'NameText')).filter(Boolean);
+    return {
+      // 발행일 = 작성일자. 없으면 전송 일시의 날짜 부분을 쓴다.
+      date: formatInboundDate(xmlText(inv, 'TaxInvoiceDocument', 'IssueDateTime').slice(0, 8))
+        || formatInboundDate(xmlText(inv, 'ExchangedDocument', 'IssueDateTime').slice(0, 8)),
+      vendor: xmlText(counterpart, 'NameText'),
+      itemName: itemNames.length > 0 ? itemNames[0] + (itemNames.length > 1 ? ` 외 ${itemNames.length - 1}건` : '') : '',
+      qty: 0,
+      amount: grandText !== '' ? (Number(grandText) || 0) : supplyAmount + taxAmount,
+      supplyAmount,
+      taxAmount,
+      issueId: xmlText(inv, 'TaxInvoiceDocument', 'IssueID'), // 승인번호 - 같은 계산서를 두 번 올렸는지 확인하는 데 사용
+      taxType,
+      selfBizNo: xmlText(self, 'ID'), // 우리 회사 쪽 사업자번호 - 매출/매입 버튼을 바꿔 누른 경우를 알아채는 데 사용
+    };
+  });
+}
+
+document.getElementById('btnTaxSales').addEventListener('click', () => {
+  taxUploadType = 'sales';
+  document.getElementById('taxXmlInput').click();
 });
-document.getElementById('inboundFileInput').addEventListener('change', async (e) => {
+document.getElementById('btnTaxPurchase').addEventListener('click', () => {
+  taxUploadType = 'purchase';
+  document.getElementById('taxXmlInput').click();
+});
+document.getElementById('taxXmlInput').addEventListener('change', async (e) => {
   const files = Array.from(e.target.files || []);
   e.target.value = '';
   if (files.length === 0) return;
+  const type = taxUploadType;
+  const label = TAX_TYPE_LABEL[type];
+  const otherLabel = TAX_TYPE_LABEL[type === 'sales' ? 'purchase' : 'sales'];
 
-  const cm = appState.inboundColMap;
-  const startRow = cm.startRow || 2;
-  let totalAdded = 0;
-  let sheetCount = 0;
+  const parsed = []; // [{ file, invoices }]
   const failedFiles = [];
-
   for (const file of files) {
-    const logId = nextInboundLogId();
-    let sheets;
     try {
-      sheets = await readWorkbookAllSheets(file);
+      const invoices = parseTaxInvoiceXml(await readXmlFileText(file), type);
+      if (invoices.length === 0) throw new Error('세금계산서 내용이 없음');
+      parsed.push({ file, invoices });
     } catch (err) {
       console.error(err);
       failedFiles.push(file.name);
-      continue;
     }
-    sheetCount += sheets.length;
-    let fileTotal = 0, fileFail = 0;
-    sheets.forEach(({ aoa }) => {
-      const idxDate = resolveSmartColIdx(cm.date, aoa, startRow, INBOUND_DATE_KEYWORDS, null);
-      const idxVendor = resolveSmartColIdx(cm.vendor, aoa, startRow, INBOUND_VENDOR_KEYWORDS, INBOUND_VENDOR_EXCLUDE);
-      const idxItem = resolveSmartColIdx(cm.itemName, aoa, startRow, INBOUND_ITEM_KEYWORDS, null);
-      const idxQty = resolveSmartColIdx(cm.qty, aoa, startRow, INBOUND_QTY_KEYWORDS, QTY_EXCLUDE);
-      const idxAmount = resolveSmartColIdx(cm.amount, aoa, startRow, INBOUND_AMOUNT_KEYWORDS, null);
-
-      for (let i = startRow - 1; i < aoa.length; i++) {
-        const row = aoa[i];
-        if (rowIsEmpty(row)) continue;
-        fileTotal++;
-        const rawDateVal = idxDate !== -1 ? row[idxDate] : '';
-        const date = formatInboundDate(rawDateVal);
-        const vendor = idxVendor !== -1 ? String(row[idxVendor] ?? '').trim() : '';
-        const itemName = idxItem !== -1 ? String(row[idxItem] ?? '').trim() : '';
-        const qty = idxQty !== -1 ? (Number(row[idxQty]) || 0) : 0;
-        const amount = idxAmount !== -1 ? (Number(row[idxAmount]) || 0) : 0;
-        const failed = !date; // 날짜를 못 읽으면 달력에 배치할 수 없으므로 인식 실패로 처리
-        if (failed) fileFail++;
-        appState.inboundRows.push({ date, vendor, itemName, qty, amount, logId, failed });
-        totalAdded++;
-      }
-    });
-
-    appState.inboundUploadLog.push({
-      id: logId,
-      fileName: file.name,
-      total: fileTotal,
-      success: fileTotal - fileFail,
-      fail: fileFail,
-      uploadedAt: Date.now(),
-    });
+  }
+  const all = parsed.flatMap(p => p.invoices);
+  if (all.length === 0) {
+    alert('홈택스 전자세금계산서 XML 파일을 읽지 못했습니다.' + (failedFiles.length > 0 ? `\n읽기 실패한 파일: ${failedFiles.join(', ')}` : ''));
+    return;
   }
 
-  saveState();
-  renderInbound();
+  // 매출 파일은 공급자가, 매입 파일은 공급받는자가 항상 우리 회사여야 한다. 그렇지 않으면 버튼을 바꿔 눌렀을 가능성이 높다.
+  const selfRole = type === 'sales' ? '공급자' : '공급받는자';
+  const knownSelf = new Set(appState.inboundRows.filter(r => r.taxType && r.selfBizNo).map(r => r.selfBizNo));
+  let warning = '';
+  if (knownSelf.size > 0) {
+    const odd = all.filter(inv => inv.selfBizNo && !knownSelf.has(inv.selfBizNo)).length;
+    if (odd > 0) warning = `선택한 세금계산서 ${all.length}건 중 ${odd}건은 ${selfRole}가, 지금까지 올린 세금계산서의 우리 회사와 다른 업체입니다.`;
+  } else if (new Set(all.map(inv => inv.selfBizNo).filter(Boolean)).size > 1) {
+    warning = `선택한 세금계산서들의 ${selfRole}가 서로 다른 업체입니다. (${label} 세금계산서라면 ${selfRole}는 모두 우리 회사여야 합니다)`;
+  }
+  if (warning && !confirm(`${warning}\n${otherLabel} 파일을 [세금계산서(${label})] 버튼으로 올린 것은 아닌지 확인하세요.\n\n그래도 ${type === 'sales' ? '매출로' : '매입으로'} 추가할까요?`)) return;
 
-  let msg = `세금계산서 ${files.length}개 파일(총 ${sheetCount}개 시트)에서 총 ${totalAdded}건이 추가되었습니다.`;
+  const existingIds = new Set(appState.inboundRows.filter(r => r.taxType === type && r.issueId).map(r => r.issueId));
+  let added = 0, undated = 0, duplicated = 0;
+  let firstDate = '';
+  parsed.forEach(({ file, invoices }) => {
+    const logId = nextInboundLogId();
+    let ok = 0, fail = 0;
+    invoices.forEach(inv => {
+      if (inv.issueId && existingIds.has(inv.issueId)) { duplicated++; return; } // 이미 올린 계산서
+      if (inv.issueId) existingIds.add(inv.issueId);
+      const failed = !inv.date; // 발행일을 못 읽으면 달력에 놓을 수 없다
+      appState.inboundRows.push(Object.assign(inv, { logId, failed }));
+      if (failed) { fail++; return; }
+      ok++;
+      if (!firstDate || inv.date < firstDate) firstDate = inv.date;
+    });
+    if (ok + fail > 0) {
+      appState.inboundUploadLog.push({ id: logId, fileName: file.name, total: ok + fail, success: ok, fail, uploadedAt: Date.now(), taxType: type });
+    }
+    added += ok;
+    undated += fail;
+  });
+
+  if (added + undated > 0) {
+    if (firstDate) {
+      // 방금 올린 내용이 바로 보이도록 그 날짜(가장 이른 발행일)로 달력을 옮긴다
+      const [y, m] = firstDate.split('-').map(Number);
+      inboundViewYear = y;
+      inboundViewMonth = m - 1;
+      inboundSelectedDate = firstDate;
+    }
+    saveState();
+    renderInbound();
+  }
+
+  let msg = `${label} 세금계산서 ${added}건이 달력에 추가되었습니다.`;
+  if (duplicated > 0) msg += `\n이미 올린 세금계산서 ${duplicated}건은 건너뛰었습니다.`;
+  if (undated > 0) msg += `\n발행일을 읽지 못한 ${undated}건은 달력에 표시되지 않습니다.`;
   if (failedFiles.length > 0) msg += `\n읽기 실패한 파일: ${failedFiles.join(', ')}`;
   alert(msg);
 });
@@ -4991,41 +5050,6 @@ document.getElementById('manualSave').addEventListener('click', () => {
   alert(`${manualSelectedDate}에 내역이 추가되었습니다.`);
 });
 
-function prepareInboundColMapSelects() {
-  ['inboundColDate', 'inboundColVendor', 'inboundColItem', 'inboundColQty', 'inboundColAmount'].forEach(id => {
-    buildColumnSelectOptions(document.getElementById(id));
-    const el = document.getElementById(id);
-    const blank = document.createElement('option');
-    blank.value = ''; blank.textContent = '(자동인식)';
-    el.insertBefore(blank, el.firstChild);
-  });
-}
-document.getElementById('btnInboundColMap').addEventListener('click', () => {
-  prepareInboundColMapSelects();
-  const cm = appState.inboundColMap;
-  document.getElementById('inboundColDate').value = cm.date || '';
-  document.getElementById('inboundColVendor').value = cm.vendor || '';
-  document.getElementById('inboundColItem').value = cm.itemName || '';
-  document.getElementById('inboundColQty').value = cm.qty || '';
-  document.getElementById('inboundColAmount').value = cm.amount || '';
-  document.getElementById('inboundColStartRow').value = cm.startRow || 2;
-  showModal('inboundColMapModal');
-});
-document.getElementById('inboundColMapCancel').addEventListener('click', () => hideModal('inboundColMapModal'));
-document.getElementById('inboundColMapSave').addEventListener('click', () => {
-  appState.inboundColMap = {
-    date: document.getElementById('inboundColDate').value || '',
-    vendor: document.getElementById('inboundColVendor').value || '',
-    itemName: document.getElementById('inboundColItem').value || '',
-    qty: document.getElementById('inboundColQty').value || '',
-    amount: document.getElementById('inboundColAmount').value || '',
-    startRow: Number(document.getElementById('inboundColStartRow').value) || 2,
-  };
-  saveState();
-  hideModal('inboundColMapModal');
-  alert('저장했습니다. 다음 업로드부터 적용됩니다. 이미 업로드된 내역에 다시 적용하려면 초기화 후 재업로드하세요.');
-});
-
 document.getElementById('btnInboundReset').addEventListener('click', () => {
   if (appState.inboundRows.length === 0 && appState.inboundUploadLog.length === 0) { alert('초기화할 내역이 없습니다.'); return; }
   const ok = confirm('업로드된 세금계산서 내역과 업로드 기록을 모두 초기화합니다. 계속할까요?');
@@ -5074,7 +5098,7 @@ function renderInboundUploadLogModal() {
     const div = document.createElement('div');
     div.className = 'uploadLogLine';
     const dateStr = entry.uploadedAt ? new Date(entry.uploadedAt).toLocaleString('ko-KR') : '';
-    div.innerHTML = `[${entry.fileName}] ${fmtNum(entry.total)}건중 `
+    div.innerHTML = `${entry.taxType ? `(${TAX_TYPE_LABEL[entry.taxType]}) ` : ''}[${entry.fileName}] ${fmtNum(entry.total)}건중 `
       + `<span class="okCount">${fmtNum(entry.success)}건 성공</span> `
       + `<span class="failCount">${fmtNum(entry.fail)}건 실패</span>`
       + (dateStr ? ` <span class="smallNote" style="display:inline;">(${dateStr})</span>` : '');
@@ -5113,17 +5137,15 @@ function renderInboundCalendar() {
   const todayStr = formatDateYMD(new Date());
   const monthPrefix = `${y}-${String(m + 1).padStart(2, '0')}`;
 
-  let monthTotalCount = 0, monthTotalAmount = 0;
-  Object.entries(byDate).forEach(([d, rows]) => {
-    if (d.slice(0, 7) === monthPrefix) {
-      monthTotalCount += rows.length;
-      rows.forEach(r => { monthTotalAmount += Number(r.amount) || 0; });
-    }
-  });
+  const monthRows = [];
+  Object.entries(byDate).forEach(([d, rows]) => { if (d.slice(0, 7) === monthPrefix) monthRows.push(...rows); });
+  const monthGroups = inboundGroupTotals(monthRows);
   const monthProdDays = Object.keys(prodRecByDate).filter(d => d.slice(0, 7) === monthPrefix).length;
   const monthHolidays = Object.keys(appState.journal).filter(d => d.slice(0, 7) === monthPrefix && appState.journal[d] && appState.journal[d].holiday).length;
   document.getElementById('inboundCalSummary').textContent =
-    `이번 달 입고 ${fmtNum(monthTotalCount)}건 · 합계 ${fmtNum(monthTotalAmount)}원`
+    '이번 달 ' + (monthGroups.length > 0
+      ? monthGroups.map(g => `${g.label} ${fmtNum(g.count)}건 ${fmtNum(g.amount)}원`).join(' · ')
+      : '매출·매입 내역 없음')
     + (monthProdDays > 0 ? ` · 생산 기록 ${monthProdDays}일` : '')
     + (monthHolidays > 0 ? ` · 휴무 ${monthHolidays}일` : '');
 
@@ -5175,14 +5197,30 @@ function renderInboundCalendar() {
     }
 
     const dayRows = byDate[dateStr] || [];
-    if (dayRows.length > 0) {
+    // 세금계산서: 매출/매입별로 건수와 "업체명 금액"(첫 건 + 외 N건)을 보여준다
+    ['sales', 'purchase'].forEach(type => {
+      const taxRows = dayRows.filter(r => r.taxType === type);
+      if (taxRows.length === 0) return;
       const badge = document.createElement('div');
-      badge.className = 'dayBadge';
-      badge.textContent = `${dayRows.length}건`;
+      badge.className = `dayBadge ${type}Badge`;
+      badge.textContent = `${TAX_TYPE_LABEL[type]} ${taxRows.length}건`;
       cell.appendChild(badge);
       const preview = document.createElement('div');
       preview.className = 'dayItemPreview';
-      const names = [...new Set(dayRows.map(r => r.itemName).filter(Boolean))];
+      preview.textContent = `${taxRows[0].vendor || '(업체명 없음)'} ${fmtNum(taxRows[0].amount)}원`
+        + (taxRows.length > 1 ? ` 외 ${taxRows.length - 1}건` : '');
+      cell.appendChild(preview);
+    });
+    // 그 밖의 내역(직접입력, 예전에 엑셀로 올린 입고 내역)
+    const otherRows = dayRows.filter(r => !r.taxType);
+    if (otherRows.length > 0) {
+      const badge = document.createElement('div');
+      badge.className = 'dayBadge';
+      badge.textContent = `${otherRows.length}건`;
+      cell.appendChild(badge);
+      const preview = document.createElement('div');
+      preview.className = 'dayItemPreview';
+      const names = [...new Set(otherRows.map(r => r.itemName).filter(Boolean))];
       preview.textContent = names.slice(0, 2).join(', ') + (names.length > 2 ? ` 외 ${names.length - 2}건` : '');
       cell.appendChild(preview);
     }
@@ -5310,29 +5348,79 @@ function renderInboundDetail(dateStr) {
   const prodRec = computeProdRecordByDate()[dateStr];
   if (prodRec) listEl.appendChild(buildProdRecordDetail(prodRec));
   if (rows.length === 0) {
-    emptyEl.textContent = '해당 날짜에 입고 내역이 없습니다.';
+    emptyEl.textContent = '해당 날짜에 세금계산서·입고 내역이 없습니다.';
     emptyEl.classList.remove('hidden');
     return;
   }
   emptyEl.classList.add('hidden');
-  let totalAmount = 0;
-  rows.forEach(r => {
-    totalAmount += Number(r.amount) || 0;
-    const div = document.createElement('div');
-    div.className = 'inboundDetailRow';
-    const qtyText = r.qty ? ` × ${fmtNum(r.qty)}` : '';
-    const amountText = r.amount ? `${fmtNum(r.amount)}원` : '';
-    const manualTag = r.manualEntry ? '<span class="idrManualTag">직접입력</span>' : '';
-    div.innerHTML = `<div class="idrVendor">${r.vendor || '(거래처 미상)'}${manualTag}</div>`
-      + `<div class="idrItem">${r.itemName || '(품목명 없음)'}${qtyText}</div>`
-      + (amountText ? `<div class="idrMeta">${amountText}</div>` : '');
-    listEl.appendChild(div);
+  // 매출 -> 매입 -> 그 밖의 내역 순으로 보여준다
+  const typeOrder = (r) => r.taxType === 'sales' ? 0 : r.taxType === 'purchase' ? 1 : 2;
+  [...rows].sort((a, b) => typeOrder(a) - typeOrder(b)).forEach(r => listEl.appendChild(buildInboundRowDetail(r)));
+  inboundGroupTotals(rows).forEach(g => {
+    const totalDiv = document.createElement('div');
+    totalDiv.className = 'inboundDetailRow';
+    totalDiv.style.fontWeight = 'bold';
+    const labelEl = document.createElement('div');
+    labelEl.textContent = `${g.label} 합계 ${fmtNum(g.count)}건`;
+    const amountEl = document.createElement('div');
+    amountEl.className = 'idrMeta';
+    amountEl.textContent = `${fmtNum(g.amount)}원`;
+    totalDiv.appendChild(labelEl);
+    totalDiv.appendChild(amountEl);
+    listEl.appendChild(totalDiv);
   });
-  const totalDiv = document.createElement('div');
-  totalDiv.className = 'inboundDetailRow';
-  totalDiv.style.fontWeight = 'bold';
-  totalDiv.innerHTML = `<div>합계 ${rows.length}건</div><div class="idrMeta">${fmtNum(totalAmount)}원</div>`;
-  listEl.appendChild(totalDiv);
+}
+
+// 내역을 매출 / 매입 / 그 밖(직접입력·예전 엑셀 업로드분, "입고"로 표시)으로 나눠 건수와 금액 합계를 낸다
+function inboundGroupTotals(rows) {
+  return [['sales', '매출'], ['purchase', '매입'], ['', '입고']].map(([type, label]) => {
+    const list = rows.filter(r => (r.taxType || '') === type);
+    return { type, label, count: list.length, amount: list.reduce((sum, r) => sum + (Number(r.amount) || 0), 0) };
+  }).filter(g => g.count > 0);
+}
+
+// 오른쪽 상세 패널의 내역 한 건. 세금계산서는 "업체명 (매출/매입) / 발행일 · 금액" 형식으로 보여준다.
+function buildInboundRowDetail(r) {
+  const div = document.createElement('div');
+  div.className = 'inboundDetailRow';
+  const addLine = (className, text) => {
+    const el = document.createElement('div');
+    el.className = className;
+    el.textContent = text;
+    div.appendChild(el);
+    return el;
+  };
+  const addTag = (parent, className, text) => {
+    const tag = document.createElement('span');
+    tag.className = className;
+    tag.textContent = text;
+    parent.appendChild(tag);
+  };
+  const head = addLine('idrVendor', r.vendor || (r.taxType ? '(업체명 없음)' : '(거래처 미상)'));
+  if (r.taxType) addTag(head, `idrTaxTag ${r.taxType}`, TAX_TYPE_LABEL[r.taxType]);
+  if (r.manualEntry) addTag(head, 'idrManualTag', '직접입력');
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'idrDelBtn';
+  delBtn.textContent = '삭제';
+  delBtn.addEventListener('click', () => {
+    const what = r.taxType ? `${TAX_TYPE_LABEL[r.taxType]} 세금계산서` : '내역';
+    if (!confirm(`[${r.vendor || '업체명 없음'}] ${fmtNum(r.amount)}원 ${what}을(를) 삭제합니다. 계속할까요?`)) return;
+    const idx = appState.inboundRows.indexOf(r);
+    if (idx !== -1) appState.inboundRows.splice(idx, 1);
+    saveState();
+    renderInbound();
+  });
+  head.appendChild(delBtn);
+
+  if (r.taxType) {
+    addLine('idrItem', `발행일 ${r.date} · ${fmtNum(r.amount)}원`);
+    addLine('idrMeta', `공급가액 ${fmtNum(r.supplyAmount)}원 · 세액 ${fmtNum(r.taxAmount)}원` + (r.itemName ? ` · ${r.itemName}` : ''));
+  } else {
+    addLine('idrItem', (r.itemName || '(품목명 없음)') + (r.qty ? ` × ${fmtNum(r.qty)}` : ''));
+    if (r.amount) addLine('idrMeta', `${fmtNum(r.amount)}원`);
+  }
+  return div;
 }
 
 document.getElementById('btnInboundPrevMonth').addEventListener('click', () => {
@@ -5475,7 +5563,7 @@ function buildJournalDetail(dateStr) {
 document.getElementById('overlay').addEventListener('click', () => {
   // 일지는 길게 적는 내용이라, 바깥을 잘못 눌러서 입력하던 내용이 사라지지 않도록 [취소]/[저장]으로만 닫는다
   if (!document.getElementById('journalModal').classList.contains('hidden')) return;
-  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal','migrateModal'].forEach(id => hideModal(id));
+  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundUploadLogModal','inboundManualModal','migrateModal'].forEach(id => hideModal(id));
 });
 
 /* ===================== 접근 제한(비밀번호 잠금) =====================
