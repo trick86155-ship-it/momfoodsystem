@@ -391,6 +391,20 @@
     background: #2b3a55; color: #fff; font-size: 14px; cursor: pointer;
   }
   #lockSubmit:hover { background: #3f5273; }
+  /* ===== 부과세계산 ===== */
+  #vatBody { flex:1; min-height:0; overflow:auto; padding:24px 14px; display:flex; justify-content:center; align-items:flex-start; }
+  #vatCard { background:#fff; border-radius:8px; padding:22px 24px; width:100%; max-width:460px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
+  #vatCard label { display:block; font-size:12px; color:#555; margin-top:16px; margin-bottom:4px; }
+  #vatInput { width:100%; padding:10px 12px; border:1px solid #ccd2da; border-radius:6px; font-size:20px; text-align:right; font-family:inherit; }
+  #vatInput:focus { outline:2px solid #5b7fd6; outline-offset:-1px; }
+  .vatLine { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; padding:10px 14px; border-radius:6px; background:#f2f3f5; font-size:13px; color:#555; }
+  .vatLine small { display:block; font-size:11px; color:#888; font-weight:normal; }
+  .vatLine > span:last-child { font-weight:bold; font-size:16px; color:#333; user-select:all; }
+  .vatLine.vatMain { background:#fff3cd; color:#2b3a55; font-weight:bold; margin-top:16px; }
+  .vatLine.vatMain > span:last-child { font-size:24px; color:#2b3a55; }
+  #vatBtns { margin-top:14px; display:flex; align-items:center; gap:8px; }
+  #vatBtns button { padding:7px 14px; border:none; border-radius:4px; cursor:pointer; font-size:13px; background:#2b3a55; color:#fff; }
+  #vatBtns #btnVatClear { background:#e8eaee; color:#333; }
   /* ===== 서버 공유 저장 상태 표시 ===== */
   #syncStatus { margin-left:auto; font-size:12px; color:#cfd6e4; white-space:nowrap; }
   #syncLoading {
@@ -421,6 +435,7 @@
   <button class="appTabBtn active" data-app="inbound">맘푸드일지</button>
   <button class="appTabBtn" data-app="settlement">자동정산기</button>
   <button class="appTabBtn" data-app="production">생산량계산기</button>
+  <button class="appTabBtn" data-app="vat">부과세계산</button>
   <span id="syncStatus"></span>
 </div>
 <div id="syncLoading" class="hidden"><div id="syncLoadingMsg"></div></div>
@@ -629,6 +644,30 @@
       <div class="sectionTitle" style="margin-top:0;" id="inboundDetailTitle">날짜를 선택하세요</div>
       <div id="inboundDetailList"></div>
       <div id="inboundDetailEmpty" class="smallNote">달력에서 날짜를 클릭하면 그날 내역을 볼 수 있고, 더블클릭하면 일지를 작성할 수 있습니다.</div>
+    </div>
+  </div>
+</div>
+
+<div id="appVat" class="appScreen">
+  <div id="vatBody">
+    <div id="vatCard">
+      <div class="sectionTitle" style="margin-top:0;border-top:none;padding-top:0;">부과세계산</div>
+      <div class="smallNote">금액을 입력하면 엑셀 수식 <b>=A1-INT(A1/11)</b> 과 같은 방식으로 계산합니다. (금액 ÷ 11 의 소수점 이하를 버린 값을 금액에서 뺍니다)</div>
+      <label for="vatInput">금액 (A1)</label>
+      <input type="text" id="vatInput" inputmode="numeric" autocomplete="off" placeholder="예: 110,000">
+      <div class="vatLine vatMain">
+        <span>계산 결과 <small>A1 − INT(A1/11)</small></span>
+        <span id="vatResult">-</span>
+      </div>
+      <div class="vatLine">
+        <span>빼는 값(부가세) <small>INT(A1/11)</small></span>
+        <span id="vatTax">-</span>
+      </div>
+      <div id="vatBtns">
+        <button type="button" id="btnVatCopy">결과 복사</button>
+        <button type="button" id="btnVatClear">지우기</button>
+        <span id="vatCopyMsg" class="smallNote"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -3555,12 +3594,73 @@ function switchApp(appName) {
   document.getElementById('appSettlement').classList.toggle('active', appName === 'settlement');
   document.getElementById('appProduction').classList.toggle('active', appName === 'production');
   document.getElementById('appInbound').classList.toggle('active', appName === 'inbound');
+  document.getElementById('appVat').classList.toggle('active', appName === 'vat');
   document.querySelectorAll('.appTabBtn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.app === appName);
   });
   if (appName === 'production') renderProduction();
   if (appName === 'inbound') renderInbound();
+  if (appName === 'vat') document.getElementById('vatInput').focus();
 }
+
+/* ===================== 부과세계산 =====================
+   입력한 금액(A1)으로 엑셀 수식 =A1-INT(A1/11) 을 계산해서 보여준다. 저장하는 데이터는 없다.
+   엑셀의 INT는 소수점 이하를 버려 더 작은 정수로 내리는 함수이므로 Math.floor와 같다. */
+function parseVatAmount(text) {
+  const cleaned = String(text).replace(/[^\d-]/g, '');
+  if (!/\d/.test(cleaned)) return null;
+  const negative = cleaned.trim().startsWith('-');
+  const n = Number(cleaned.replace(/-/g, ''));
+  return negative ? -n : n;
+}
+function renderVatResult() {
+  const amount = parseVatAmount(document.getElementById('vatInput').value);
+  const resultEl = document.getElementById('vatResult');
+  const taxEl = document.getElementById('vatTax');
+  document.getElementById('vatCopyMsg').textContent = '';
+  if (amount === null) {
+    resultEl.textContent = '-';
+    taxEl.textContent = '-';
+    return;
+  }
+  const tax = Math.floor(amount / 11);
+  resultEl.textContent = (amount - tax).toLocaleString('ko-KR');
+  taxEl.textContent = tax.toLocaleString('ko-KR');
+}
+document.getElementById('vatInput').addEventListener('input', (e) => {
+  // 입력하는 동안 천 단위 쉼표를 넣어 주되, 커서가 엉뚱한 곳으로 튀지 않게 "커서 앞의 숫자 개수"를 기준으로 위치를 되돌린다
+  const input = e.target;
+  const digitsBeforeCaret = input.value.slice(0, input.selectionStart).replace(/\D/g, '').length;
+  const amount = parseVatAmount(input.value);
+  const onlyMinus = amount === null && input.value.includes('-');
+  input.value = amount === null ? (onlyMinus ? '-' : '') : amount.toLocaleString('ko-KR');
+  let pos = 0, seen = 0;
+  while (pos < input.value.length && seen < digitsBeforeCaret) {
+    if (/\d/.test(input.value[pos])) seen++;
+    pos++;
+  }
+  if (digitsBeforeCaret === 0) pos = input.value.startsWith('-') ? 1 : 0;
+  input.setSelectionRange(pos, pos);
+  renderVatResult();
+});
+document.getElementById('btnVatClear').addEventListener('click', () => {
+  const input = document.getElementById('vatInput');
+  input.value = '';
+  renderVatResult();
+  input.focus();
+});
+document.getElementById('btnVatCopy').addEventListener('click', async () => {
+  const amount = parseVatAmount(document.getElementById('vatInput').value);
+  const msgEl = document.getElementById('vatCopyMsg');
+  if (amount === null) { msgEl.textContent = '먼저 금액을 입력하세요.'; return; }
+  const text = String(amount - Math.floor(amount / 11)); // 엑셀 등에 바로 붙여넣을 수 있게 쉼표 없는 숫자로 복사
+  try {
+    await navigator.clipboard.writeText(text);
+    msgEl.textContent = `${text} 복사됨`;
+  } catch (err) {
+    msgEl.textContent = '복사하지 못했습니다. 결과를 직접 선택해서 복사해 주세요.';
+  }
+});
 
 /* ===================== 생산량계산기 ===================== */
 // 상품군별 1회 생산량(인분) - 순서 중요: 더 구체적인 이름(공주칼국수)을 먼저 검사해야
