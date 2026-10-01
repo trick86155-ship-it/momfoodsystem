@@ -109,7 +109,7 @@
   #invoiceUploadSummary .ouSuccess { display:inline-block; padding:1px 8px; border-radius:10px; background:#e3f5e6; color:#1e7a35; font-weight:bold; }
   #invoiceUploadSummary .ouFail { display:inline-block; padding:1px 8px; border-radius:10px; background:#fbe2e0; color:#c0271a; font-weight:bold; }
 
-  /* ===== 입고일지 ===== */
+  /* ===== 맘푸드일지 ===== */
   #inboundToolbar {
     display:flex; align-items:center; gap:8px;
     background:#2b3a55; padding:10px 14px; flex:0 0 auto;
@@ -163,6 +163,27 @@
   .inboundDetailRow .idrVendor { font-weight:bold; color:#2b3a55; }
   .inboundDetailRow .idrItem { margin-top:2px; }
   .inboundDetailRow .idrMeta { margin-top:2px; color:#777; }
+  /* 날짜별 일지 */
+  .calDayCell.holidayDay { background:#fff1f1; }
+  .calDayCell.holidayDay:hover { background:#ffe6e6; }
+  .calDayCell.holidayDay .dayNum { color:#c0271a; }
+  .calDayCell.holidayDay.selectedDay { background:#fbe2e0; }
+  .calDayCell.otherMonth.holidayDay { background:#f3e9e9; }
+  .dayBadge { align-self:flex-start; } /* 칸 너비만큼 늘어나지 않고 글자 크기만큼만 */
+  .dayBadge.holidayBadge { background:#fbe2e0; color:#c0271a; }
+  .dayBadge.journalBadge { background:#dce8fb; color:#1c4f9c; }
+  .journalDetailRow { background:#f5f8fd; border:1px solid #d5e0f2; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
+  .journalEditBtn { float:right; background:#3f5273; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; }
+  .journalEditBtn:hover { background:#4c6389; }
+  .journalFieldLabel { margin-top:6px; font-size:11px; font-weight:bold; color:#5b6b85; }
+  .journalFieldText { white-space:pre-wrap; word-break:break-word; }
+  .idrHolidayTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fbe2e0; color:#c0271a; font-size:10px; font-weight:bold; vertical-align:middle; }
+  .modal textarea, .modal input[type=time] {
+    width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit;
+  }
+  .modal textarea { resize:vertical; }
+  .modal label.journalCheckLabel { font-size:13px; color:#222; font-weight:bold; cursor:pointer; }
+  .modal label.journalCheckLabel input { width:auto; vertical-align:middle; margin-right:6px; }
   .dayBadge.prodBadge { background:#fff3cd; color:#8a5a1f; }
   .calDayCell.otherMonth .dayBadge.prodBadge { background:#f1ece2; color:#a98a5e; }
   .prodRecordRow { background:#fffaf0; border:1px solid #f0e2bd; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
@@ -364,13 +385,7 @@
   }
   #lockSubmit:hover { background: #3f5273; }
   /* ===== 서버 공유 저장 상태 표시 ===== */
-  #syncStatus { margin-left:4px; font-size:12px; color:#cfd6e4; white-space:nowrap; }
-  #btnDataManage {
-    margin-left:auto; background:transparent; color:#cfd6e4; border:1px solid #4c6389; border-radius:4px;
-    padding:4px 10px; font-size:12px; cursor:pointer;
-  }
-  #btnDataManage:hover { background:#2b3a55; color:#fff; }
-  #dataManageModal .dataBtn { margin-top:8px; padding:7px 16px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+  #syncStatus { margin-left:auto; font-size:12px; color:#cfd6e4; white-space:nowrap; }
   #syncLoading {
     position:fixed; inset:0; z-index:9000; background:rgba(28,37,54,0.82);
     display:flex; align-items:center; justify-content:center; padding:20px;
@@ -398,8 +413,7 @@
 <div id="globalBar">
   <button class="appTabBtn active" data-app="settlement">자동정산기</button>
   <button class="appTabBtn" data-app="production">생산량계산기</button>
-  <button class="appTabBtn" data-app="inbound">입고일지</button>
-  <button id="btnDataManage" type="button">데이터 관리</button>
+  <button class="appTabBtn" data-app="inbound">맘푸드일지</button>
   <span id="syncStatus"></span>
 </div>
 <div id="syncLoading" class="hidden"><div id="syncLoadingMsg"></div></div>
@@ -530,7 +544,7 @@
 
         <div class="sectionTitle">생산 횟수 요약</div>
         <div id="prodRunSummary"></div>
-        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 입고일지의 전날 날짜 칸에 자동으로 기록됩니다. 마지막 기록 이후 내역이 바뀌지 않았으면 다시 기록하지 않습니다.</div>
+        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 맘푸드일지의 전날 날짜 칸에 자동으로 기록됩니다. 마지막 기록 이후 내역이 바뀌지 않았으면 다시 기록하지 않습니다.</div>
       </div>
     </div>
   </div>
@@ -607,7 +621,7 @@
     <div id="inboundDetailArea">
       <div class="sectionTitle" style="margin-top:0;" id="inboundDetailTitle">날짜를 선택하세요</div>
       <div id="inboundDetailList"></div>
-      <div id="inboundDetailEmpty" class="smallNote">달력에서 날짜를 클릭하면 그날 입고된 내역을 볼 수 있습니다.</div>
+      <div id="inboundDetailEmpty" class="smallNote">달력에서 날짜를 클릭하면 그날 내역을 볼 수 있고, 더블클릭하면 일지를 작성할 수 있습니다.</div>
     </div>
   </div>
 </div>
@@ -837,10 +851,10 @@
   </div>
 </div>
 
-<!-- 입고일지: 세금계산서 파일 없이 날짜를 직접 선택해 내역을 추가하는 모달 -->
+<!-- 맘푸드일지: 세금계산서 파일 없이 날짜를 직접 선택해 내역을 추가하는 모달 -->
 <div id="inboundManualModal" class="modal hidden" style="width:360px;">
   <h2>세금계산서 직접입력</h2>
-  <div class="smallNote">세금계산서 파일이 없을 때 달력에서 날짜를 선택하고 내용을 직접 입력해 입고일지에 추가합니다.</div>
+  <div class="smallNote">세금계산서 파일이 없을 때 달력에서 날짜를 선택하고 내용을 직접 입력해 맘푸드일지에 추가합니다.</div>
   <div id="manualCalHeader">
     <button type="button" id="btnManualCalPrev" class="btnGhost">◀</button>
     <div id="manualCalTitle"></div>
@@ -862,7 +876,7 @@
   </div>
 </div>
 
-<!-- 입고일지: 세금계산서 열 매핑 설정 모달 -->
+<!-- 맘푸드일지: 세금계산서 열 매핑 설정 모달 -->
 <div id="inboundColMapModal" class="modal hidden">
   <h2>세금계산서 열 매핑 설정</h2>
   <div class="smallNote">칸을 비워두면 업로드하는 파일의 헤더에서 자동으로 열을 찾습니다. 자동인식이 잘못될 때만 직접 지정하세요.</div>
@@ -884,7 +898,32 @@
   </div>
 </div>
 
-<!-- 입고일지: 업로드 내역 모달 -->
+<!-- 맘푸드일지: 날짜별 일지 작성 모달 (달력에서 날짜를 더블클릭하면 열림) -->
+<div id="journalModal" class="modal hidden">
+  <h2 id="journalModalTitle">일지</h2>
+  <label class="journalCheckLabel"><input type="checkbox" id="journalHoliday"> 휴무일로 지정</label>
+  <div class="row2">
+    <div><label>퇴근시간</label><input type="time" id="journalOffTime"></div>
+    <div></div>
+  </div>
+  <label>재고</label>
+  <textarea id="journalStock" rows="3" placeholder="예: 밀가루 20포, 간장 5통"></textarea>
+  <label>입고</label>
+  <textarea id="journalInbound" rows="3" placeholder="예: 밀가루 50포 입고"></textarea>
+  <label>출고</label>
+  <textarea id="journalOutbound" rows="3" placeholder="예: 칼국수 120박스 출고"></textarea>
+  <label>메모</label>
+  <textarea id="journalMemo" rows="3" placeholder="그 밖에 남길 내용"></textarea>
+  <div class="modalBtns" style="justify-content:space-between;">
+    <button id="journalDelete" style="background:#8a2c2c;color:#fff;">일지 삭제</button>
+    <div style="display:flex;gap:8px;margin-left:auto;">
+      <button class="btnGhost" id="journalCancel">취소</button>
+      <button class="btnPrimary" id="journalSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 맘푸드일지: 업로드 내역 모달 -->
 <div id="inboundUploadLogModal" class="modal hidden" style="width:520px;">
   <h2>세금계산서 업로드 내역</h2>
   <div id="inboundUploadLogList" style="margin-top:10px;max-height:360px;overflow-y:auto;"></div>
@@ -905,33 +944,6 @@
     <button class="btnPrimary" id="migrateUpload">공유 서버로 올리기</button>
   </div>
 </div>
-
-<!-- 데이터 관리: 백업 내보내기 / 가져오기 -->
-<div id="dataManageModal" class="modal hidden">
-  <h2>데이터 관리</h2>
-  <div id="dataLocalNote" class="smallNote hidden" style="background:#fff3cd;color:#5c4a12;padding:8px 10px;border-radius:4px;margin-bottom:10px;">
-    지금은 파일을 직접 열어서 쓰는 화면이라, 데이터가 이 컴퓨터에만 저장돼 있습니다.
-    공유 사이트로 옮기려면 여기서 [백업 파일로 내보내기]를 한 뒤, 사이트에 접속해서 [데이터 관리 → 백업 파일 가져오기]로 그 파일을 올리세요.
-  </div>
-  <div class="sectionTitle" style="margin-top:0;border-top:none;padding-top:0;">백업 파일로 내보내기</div>
-  <div class="smallNote">지금 보이는 모든 데이터(프로필·정산내역·단가·생산량계산기·입고일지)를 파일 하나로 저장합니다.</div>
-  <button type="button" id="btnDataExport" class="dataBtn btnPrimary">백업 파일로 내보내기</button>
-
-  <div class="sectionTitle">백업 파일 가져오기</div>
-  <div class="smallNote">내보낸 백업 파일의 내용을 현재 데이터에 합칩니다. 현재 데이터는 지워지지 않습니다.</div>
-  <button type="button" id="btnDataImport" class="dataBtn btnPrimary">백업 파일 가져오기</button>
-
-  <div id="dataLegacyArea">
-    <div class="sectionTitle">이 브라우저에 남아 있는 예전 데이터</div>
-    <div class="smallNote">공유 서버로 바뀌기 전에 이 브라우저에서 이 사이트 주소로 쓰던 데이터가 남아 있는지 다시 확인하고 올립니다.</div>
-    <button type="button" id="btnDataLegacy" class="dataBtn btnGhost">예전 데이터 확인</button>
-  </div>
-
-  <div class="modalBtns">
-    <button class="btnGhost" id="dataManageClose">닫기</button>
-  </div>
-</div>
-<input type="file" id="dataImportInput" accept=".json,application/json" style="display:none">
 
 <script>
 /* ===================== 상태 & 유틸 ===================== */
@@ -957,8 +969,9 @@ let appState = {
   prodRows: [], prodUploadLog: [], prodOverrides: {}, prodRemovedRows: [],
   inboundRows: [], inboundUploadLog: [],
   inboundColMap: { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 },
-  prodDaily: { sig: '', summary: null, changedAt: 0, recorded: false }, // 생산량 정리내역의 현재 요약(입고일지 자동 기록용)
-  prodDailyRecords: [], // 입고일지에 자동 기록된 날짜별 생산 요약
+  prodDaily: { sig: '', summary: null, changedAt: 0, recorded: false }, // 생산량 정리내역의 현재 요약(맘푸드일지 자동 기록용)
+  prodDailyRecords: [], // 맘푸드일지에 자동 기록된 날짜별 생산 요약
+  journal: {}, // 맘푸드일지: { 'YYYY-MM-DD': { holiday, offTime, stock, inbound, outbound, memo, updatedAt } }
 };
 
 let prodFixOrigName = null; // 인식현황 탭 "상품수정" 모달에서 현재 수정 중인 원본 상품명
@@ -1026,6 +1039,7 @@ function normalizeState(appState) {
     appState.prodDaily = { sig: '', summary: null, changedAt: 0, recorded: false };
   }
   if (!Array.isArray(appState.prodDailyRecords)) appState.prodDailyRecords = [];
+  if (!appState.journal || typeof appState.journal !== 'object' || Array.isArray(appState.journal)) appState.journal = {};
   return appState;
 }
 function saveState() {
@@ -1045,7 +1059,8 @@ function saveState() {
    웹(http/https)으로 접속하면 모든 사용자가 같은 서버 데이터를 본다 (/api, Cloudflare Pages Functions + D1).
    파일을 직접 더블클릭해서 연 경우(file://)에는 예전처럼 이 컴퓨터의 localStorage에만 저장한다.
 
-   데이터는 "섹션" 단위로 주고받는다: prod(생산량계산기), inbound(입고일지), proddaily(생산 자동 기록), profile:<id>(거래처 프로필 1개).
+   데이터는 "섹션" 단위로 주고받는다: prod(생산량계산기), inbound(맘푸드일지의 세금계산서 입고 내역), proddaily(생산 자동 기록),
+   journal(맘푸드일지의 날짜별 일지), profile:<id>(거래처 프로필 1개).
    섹션마다 버전 번호가 있어서, 내가 수정하는 사이 다른 사람이 같은 섹션을 먼저 저장했으면
    서버가 저장을 거절(409)하고 최신 내용을 돌려준다 -> 서로의 수정을 모르고 덮어쓰는 일을 막는다. */
 const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
@@ -1055,6 +1070,7 @@ const MIGRATION_FLAG_KEY = 'autoSettleApp_migratedToServer';
 const PROD_STATE_KEYS = ['prodRows', 'prodUploadLog', 'prodOverrides', 'prodRemovedRows'];
 const INBOUND_STATE_KEYS = ['inboundRows', 'inboundUploadLog', 'inboundColMap'];
 const PRODDAILY_STATE_KEYS = ['prodDaily', 'prodDailyRecords'];
+const JOURNAL_STATE_KEYS = ['journal'];
 const PROFILE_SECTION_PREFIX = 'profile:';
 const PUSH_DELAY_MS = 800;
 const POLL_INTERVAL_MS = 5000;       // 다른 사람의 변경사항을 확인하는 주기
@@ -1082,6 +1098,7 @@ function buildSections(state) {
     prod: JSON.stringify(pick(PROD_STATE_KEYS)),
     inbound: JSON.stringify(pick(INBOUND_STATE_KEYS)),
     proddaily: JSON.stringify(pick(PRODDAILY_STATE_KEYS)),
+    journal: JSON.stringify(pick(JOURNAL_STATE_KEYS)),
   };
   state.profiles.forEach(p => { out[PROFILE_SECTION_PREFIX + p.id] = JSON.stringify(p); });
   return out;
@@ -1094,6 +1111,8 @@ function setLocalSection(key, obj) {
     INBOUND_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
   } else if (key === 'proddaily') {
     PRODDAILY_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
+  } else if (key === 'journal') {
+    JOURNAL_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
   } else if (key.startsWith(PROFILE_SECTION_PREFIX)) {
     const id = key.slice(PROFILE_SECTION_PREFIX.length);
     if (obj.id !== id) return;
@@ -1190,7 +1209,7 @@ function refreshAfterRemote(changedKeys, conflictKeys) {
     else renderProfileSelect();
   }
   if (changedKeys.includes('prod') && document.getElementById('appProduction').classList.contains('active')) renderProduction();
-  if ((changedKeys.includes('inbound') || changedKeys.includes('proddaily')) && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  if (['inbound', 'proddaily', 'journal'].some(k => changedKeys.includes(k)) && document.getElementById('appInbound').classList.contains('active')) renderInbound();
   // proddaily는 사람이 입력하는 내용이 아니라 각 화면이 자동으로 계산해 올리는 값이라, 겹쳐도 알릴 필요가 없다
   if (conflictKeys.some(k => k !== 'proddaily')) {
     showSyncToast('다른 사용자가 같은 내용을 먼저 수정해서, 방금 변경한 내용이 반영되지 않았습니다. 화면을 최신 내용으로 바꿨으니 확인 후 다시 입력해 주세요.');
@@ -1272,7 +1291,28 @@ function schedulePush(delay) {
   if (sync.pushTimer) clearTimeout(sync.pushTimer);
   sync.pushTimer = setTimeout(() => { sync.pushTimer = null; pushDirty(); }, delay === undefined ? PUSH_DELAY_MS : delay);
 }
+// 일지 저장이 다른 사람의 저장과 겹쳤을 때: 일지는 날짜별로 따로 쓰는 내용이므로 통째로 버리지 않고,
+// 서버 최신 내용 위에 "내가 고친 날짜"만 다시 얹는다(같은 날짜를 둘 다 고쳤으면 나중에 저장한 쪽이 남는다).
+function mergeJournalChanges(serverJournal) {
+  const base = sync.synced.journal ? (JSON.parse(sync.synced.journal).journal || {}) : {};
+  const mine = appState.journal;
+  const merged = Object.assign({}, serverJournal);
+  new Set([...Object.keys(base), ...Object.keys(mine)]).forEach(date => {
+    if (JSON.stringify(base[date]) === JSON.stringify(mine[date])) return; // 내가 건드리지 않은 날짜
+    if (mine[date] === undefined) delete merged[date]; else merged[date] = mine[date];
+  });
+  return merged;
+}
 function handlePushConflict(key, body) {
+  if (key === 'journal' && body && !body.deleted) {
+    const serverJournal = (body.data && body.data.journal) || {};
+    appState.journal = mergeJournalChanges(serverJournal);
+    sync.versions[key] = body.v;
+    sync.synced[key] = JSON.stringify({ journal: serverJournal });
+    if (buildSections(appState)[key] !== sync.synced[key]) sync.dirty = true; // 합친 결과를 다시 보낸다
+    refreshAfterRemote([key], []);
+    return;
+  }
   if (body && body.deleted) {
     delete sync.versions[key];
     delete sync.synced[key];
@@ -1378,32 +1418,23 @@ function mergeUniqueItems(serverList, localList) {
   const seen = new Set(serverList.map(x => JSON.stringify(x)));
   return serverList.concat(localList.filter(x => !seen.has(JSON.stringify(x))));
 }
-// force=true: [데이터 관리]에서 직접 눌렀을 때 - 이미 물어봤던 브라우저라도 다시 확인하고, 없으면 없다고 알려준다
-function offerLegacyMigration(force) {
+function offerLegacyMigration() {
   let legacy = null;
   try {
-    if (!force && localStorage.getItem(MIGRATION_FLAG_KEY)) return;
+    if (localStorage.getItem(MIGRATION_FLAG_KEY)) return;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) legacy = normalizeState(JSON.parse(raw));
-  } catch (e) { console.warn('예전 데이터 읽기 실패', e); }
+  } catch (e) { console.warn('예전 데이터 읽기 실패', e); return; }
+  if (!legacy) return;
 
+  const serverIds = new Set(appState.profiles.map(p => p.id));
+  const newProfiles = legacy.profiles.filter(p => p && p.id && !serverIds.has(p.id));
   const lines = [];
-  if (legacy) {
-    const serverIds = new Set(appState.profiles.map(p => p.id));
-    const newProfiles = legacy.profiles.filter(p => p && p.id && !serverIds.has(p.id));
-    if (newProfiles.length > 0) lines.push(`자동정산기 프로필 ${newProfiles.length}개: ${newProfiles.map(p => p.name).join(', ')}`);
-    if (legacy.prodRows.length > 0) lines.push(`생산량계산기 발주내역 ${fmtNum(legacy.prodRows.length)}건`);
-    if (Object.keys(legacy.prodOverrides).length > 0) lines.push(`생산량계산기 수동 매핑 ${Object.keys(legacy.prodOverrides).length}개`);
-    if (legacy.inboundRows.length > 0) lines.push(`입고일지 ${fmtNum(legacy.inboundRows.length)}건`);
-  }
-  if (lines.length === 0) {
-    if (force) {
-      alert('이 브라우저(이 사이트 주소)에는 올릴 예전 데이터가 없습니다.\n\n'
-        + '예전에 index.html 파일을 더블클릭해서 쓰셨다면 데이터가 "파일로 연 화면" 쪽에 저장돼 있습니다.\n'
-        + '그 화면에서 [데이터 관리 → 백업 파일로 내보내기]를 한 뒤, 여기서 [백업 파일 가져오기]로 올려주세요.');
-    }
-    return;
-  }
+  if (newProfiles.length > 0) lines.push(`자동정산기 프로필 ${newProfiles.length}개: ${newProfiles.map(p => p.name).join(', ')}`);
+  if (legacy.prodRows.length > 0) lines.push(`생산량계산기 발주내역 ${fmtNum(legacy.prodRows.length)}건`);
+  if (Object.keys(legacy.prodOverrides).length > 0) lines.push(`생산량계산기 수동 매핑 ${Object.keys(legacy.prodOverrides).length}개`);
+  if (legacy.inboundRows.length > 0) lines.push(`맘푸드일지 ${fmtNum(legacy.inboundRows.length)}건`);
+  if (lines.length === 0) return;
 
   legacyStateForMigration = legacy;
   const listEl = document.getElementById('migrateSummary');
@@ -1419,114 +1450,35 @@ function offerLegacyMigration(force) {
 function setMigrationFlag(value) {
   try { localStorage.setItem(MIGRATION_FLAG_KEY, value); } catch (e) { /* 무시 */ }
 }
-// 다른 곳(이 브라우저의 예전 저장분, 백업 파일)에서 온 데이터를 현재 데이터에 합친다. 현재 데이터는 지우지 않는다.
-// overwriteSameProfiles=true면 같은 프로필(id 동일)은 들어온 쪽 내용으로 바꾼다.
-function mergeIncomingState(incoming, overwriteSameProfiles) {
-  const result = { profilesAdded: 0, profilesReplaced: 0, profilesKept: 0, prodRowsAdded: 0, inboundRowsAdded: 0 };
-  const names = new Set(appState.profiles.map(p => p.name));
-  incoming.profiles.forEach(p => {
-    if (!p || !p.id) return;
-    const idx = appState.profiles.findIndex(x => x.id === p.id);
-    if (idx >= 0) {
-      if (JSON.stringify(appState.profiles[idx]) === JSON.stringify(p)) return;
-      if (overwriteSameProfiles) { appState.profiles[idx] = p; result.profilesReplaced++; }
-      else result.profilesKept++;
-      return;
-    }
-    if (names.has(p.name)) p.name += ' (가져온 데이터)'; // 같은 이름의 다른 프로필이 이미 있으면 구분되게 표시
-    names.add(p.name);
-    appState.profiles.push(p);
-    result.profilesAdded++;
-  });
-  const prodBefore = appState.prodRows.length;
-  const inboundBefore = appState.inboundRows.length;
-  appState.prodRows = mergeUniqueItems(appState.prodRows, incoming.prodRows);
-  appState.prodUploadLog = mergeUniqueItems(appState.prodUploadLog, incoming.prodUploadLog);
-  appState.prodRemovedRows = mergeUniqueItems(appState.prodRemovedRows, incoming.prodRemovedRows);
-  appState.prodOverrides = Object.assign({}, incoming.prodOverrides, appState.prodOverrides); // 겹치면 현재 쪽 우선
-  appState.inboundRows = mergeUniqueItems(appState.inboundRows, incoming.inboundRows);
-  appState.inboundUploadLog = mergeUniqueItems(appState.inboundUploadLog, incoming.inboundUploadLog);
-  const colMap = appState.inboundColMap;
-  if (!['date', 'vendor', 'itemName', 'qty', 'amount'].some(k => colMap[k])) appState.inboundColMap = incoming.inboundColMap;
-  const recIds = new Set(appState.prodDailyRecords.map(r => r.id));
-  (incoming.prodDailyRecords || []).forEach(r => { if (r && r.id && !recIds.has(r.id)) appState.prodDailyRecords.push(r); });
-  result.prodRowsAdded = appState.prodRows.length - prodBefore;
-  result.inboundRowsAdded = appState.inboundRows.length - inboundBefore;
-
-  fixCurrentProfile();
-  saveState();
-  renderAll();
-  if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
-  if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
-  return result;
-}
 function runLegacyMigration() {
   const legacy = legacyStateForMigration;
   legacyStateForMigration = null;
   hideModal('migrateModal');
   if (!legacy) return;
-  mergeIncomingState(legacy, false);
-  setMigrationFlag('uploaded');
-}
 
-/* ----- 데이터 관리: 백업 파일 내보내기 / 가져오기 ----- */
-const BACKUP_FILE_MARK = 'momfood-backup';
-document.getElementById('btnDataManage').addEventListener('click', () => {
-  document.getElementById('dataLegacyArea').classList.toggle('hidden', !SERVER_MODE);
-  document.getElementById('dataLocalNote').classList.toggle('hidden', SERVER_MODE);
-  showModal('dataManageModal');
-});
-document.getElementById('dataManageClose').addEventListener('click', () => hideModal('dataManageModal'));
-document.getElementById('btnDataExport').addEventListener('click', () => {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
-  const blob = new Blob([JSON.stringify({ type: BACKUP_FILE_MARK, version: 1, exportedAt: d.toISOString(), state: appState })], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `맘푸드_백업_${stamp}.json`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-});
-document.getElementById('btnDataImport').addEventListener('click', () => document.getElementById('dataImportInput').click());
-document.getElementById('dataImportInput').addEventListener('change', async (e) => {
-  const file = (e.target.files || [])[0];
-  e.target.value = '';
-  if (!file) return;
-  let incoming = null;
-  try {
-    const parsed = JSON.parse(await file.text());
-    const state = parsed && parsed.type === BACKUP_FILE_MARK ? parsed.state : parsed;
-    if (state && typeof state === 'object' && (Array.isArray(state.profiles) || Array.isArray(state.prodRows) || Array.isArray(state.inboundRows))) {
-      incoming = normalizeState(state);
-    }
-  } catch (err) { console.warn('백업 파일 읽기 실패', err); }
-  if (!incoming) { alert('맘푸드 업무시스템의 백업 파일이 아니거나, 파일을 읽을 수 없습니다.'); return; }
-
-  const sameButDifferent = incoming.profiles.filter(p => {
-    const cur = p && appState.profiles.find(x => x.id === p.id);
-    return cur && JSON.stringify(cur) !== JSON.stringify(p);
+  const serverIds = new Set(appState.profiles.map(p => p.id));
+  const serverNames = new Set(appState.profiles.map(p => p.name));
+  legacy.profiles.forEach(p => {
+    if (!p || !p.id || serverIds.has(p.id)) return;
+    if (serverNames.has(p.name)) p.name += ' (기존 PC 데이터)'; // 서버에 같은 이름의 프로필이 이미 있으면 구분되게 표시
+    appState.profiles.push(p);
   });
-  let overwrite = false;
-  if (sameButDifferent.length > 0) {
-    overwrite = confirm(`이미 있는 프로필 ${sameButDifferent.length}개(${sameButDifferent.map(p => p.name).join(', ')})가 백업 파일과 내용이 다릅니다.\n\n`
-      + '[확인] 백업 파일의 내용으로 바꾸기\n[취소] 현재 내용 그대로 두기 (나머지 데이터만 가져옴)');
-  }
-  const r = mergeIncomingState(incoming, overwrite);
-  hideModal('dataManageModal');
-  alert('가져오기가 끝났습니다.\n'
-    + `- 프로필: ${r.profilesAdded}개 추가`
-    + (r.profilesReplaced ? `, ${r.profilesReplaced}개 교체` : '')
-    + (r.profilesKept ? `, ${r.profilesKept}개는 현재 내용 유지` : '') + '\n'
-    + `- 생산량계산기 발주내역: ${fmtNum(r.prodRowsAdded) || 0}건 추가\n`
-    + `- 입고일지: ${fmtNum(r.inboundRowsAdded) || 0}건 추가`);
-});
-document.getElementById('btnDataLegacy').addEventListener('click', () => {
-  hideModal('dataManageModal');
-  offerLegacyMigration(true);
-});
+  appState.prodRows = mergeUniqueItems(appState.prodRows, legacy.prodRows);
+  appState.prodUploadLog = mergeUniqueItems(appState.prodUploadLog, legacy.prodUploadLog);
+  appState.prodRemovedRows = mergeUniqueItems(appState.prodRemovedRows, legacy.prodRemovedRows);
+  appState.prodOverrides = Object.assign({}, legacy.prodOverrides, appState.prodOverrides); // 겹치면 서버 쪽 우선
+  appState.inboundRows = mergeUniqueItems(appState.inboundRows, legacy.inboundRows);
+  appState.inboundUploadLog = mergeUniqueItems(appState.inboundUploadLog, legacy.inboundUploadLog);
+  const serverColMap = appState.inboundColMap;
+  if (!['date', 'vendor', 'itemName', 'qty', 'amount'].some(k => serverColMap[k])) appState.inboundColMap = legacy.inboundColMap;
+
+  fixCurrentProfile();
+  setMigrationFlag('uploaded');
+  saveState();
+  renderAll();
+  if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
+  if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
+}
 document.getElementById('migrateUpload').addEventListener('click', runLegacyMigration);
 document.getElementById('migrateLater').addEventListener('click', () => hideModal('migrateModal'));
 document.getElementById('migrateNever').addEventListener('click', () => {
@@ -1653,7 +1605,7 @@ function resolveProductNameColIdx(letterOrBlank, aoa, startRow) {
   return findSmartColIdx(aoa, startRow, PRODUCT_NAME_KEYWORDS, PRODUCT_NAME_EXCLUDE);
 }
 
-/* ===================== 입고일지 ===================== */
+/* ===================== 맘푸드일지 ===================== */
 const INBOUND_DATE_KEYWORDS = ['작성일자', '발급일자', '거래일자', '승인일자', '일자'];
 const INBOUND_VENDOR_KEYWORDS = ['공급자상호', '거래처명', '거래처', '상호'];
 const INBOUND_VENDOR_EXCLUDE = ['공급받는자'];
@@ -1662,7 +1614,7 @@ const INBOUND_QTY_KEYWORDS = ['수량'];
 const INBOUND_AMOUNT_KEYWORDS = ['공급가액', '합계금액', '금액'];
 
 // 열 지정값(letter 또는 빈값)을 실제 열 인덱스로 변환한다. 빈값이면 헤더 우선순위 키워드 + 데이터 채움 비율 기반으로 자동 감지한다.
-// (입고일지, 자동정산기 송장업로드 등 여러 모듈에서 공용으로 사용)
+// (맘푸드일지, 자동정산기 송장업로드 등 여러 모듈에서 공용으로 사용)
 function resolveSmartColIdx(letterOrBlank, aoa, startRow, keywords, excludeKeywords) {
   if (letterOrBlank) return colToIdx(letterOrBlank);
   return findSmartColIdx(aoa, startRow, keywords, excludeKeywords);
@@ -4096,9 +4048,9 @@ function renderProdSummary() {
   }
 }
 
-/* ===================== 생산량 정리내역 -> 입고일지 자동 기록 =====================
+/* ===================== 생산량 정리내역 -> 맘푸드일지 자동 기록 =====================
    하루의 마감을 한국시간 오전 6시로 본다. 마감 시각이 지나면, 그 시점의 정리내역을 간략히 요약해서
-   입고일지의 "전날" 날짜 칸에 기록한다. (예: 10/1 06:00 ~ 10/2 05:59 사이에 정리된 내역 -> 10/1 칸)
+   맘푸드일지의 "전날" 날짜 칸에 기록한다. (예: 10/1 06:00 ~ 10/2 05:59 사이에 정리된 내역 -> 10/1 칸)
 
    서버에는 정해진 시각에 스스로 실행되는 프로그램이 없으므로, 화면을 열어 둔(또는 6시 이후 처음 여는) 브라우저가 대신 기록한다.
    그래도 결과가 달라지지 않도록, "현재 정리내역 요약 + 마지막으로 바뀐 시각"을 항상 데이터에 함께 저장해 둔다(prodDaily).
@@ -4117,7 +4069,7 @@ function nextProdCutoffAfter(ts) {
 function kstDateStr(ts) {
   return new Date(ts + KST_OFFSET_MS).toISOString().slice(0, 10);
 }
-// 현재 발주내역 전체(파일 필터와 무관)의 정리내역을 입고일지용으로 간략하게 요약
+// 현재 발주내역 전체(파일 필터와 무관)의 정리내역을 맘푸드일지용으로 간략하게 요약
 function buildProdDailySummary() {
   const s = computeProductionSummary(appState.prodRows);
   const totals = []; // 상품별 총 인분
@@ -4145,7 +4097,7 @@ function prodDailyNeedsWork(now) {
 function prodDailyCheck(now) {
   const d = appState.prodDaily;
   let changed = false;
-  // 1) 저장돼 있던 요약이 아직 기록 전이고 그 뒤로 마감(06:00)이 지났으면 입고일지에 기록
+  // 1) 저장돼 있던 요약이 아직 기록 전이고 그 뒤로 마감(06:00)이 지났으면 맘푸드일지에 기록
   if (d.summary && !d.recorded) {
     const cutoff = nextProdCutoffAfter(d.changedAt);
     if (now >= cutoff) {
@@ -4755,7 +4707,7 @@ document.getElementById('prodUpdateSave').addEventListener('click', () => {
   alert(`${savedCount}개 상품이 업데이트되었습니다. 같은 이름의 항목은 앞으로도 자동으로 인식됩니다.`);
 });
 
-/* ===================== 입고일지 (세금계산서 업로드 -> 달력) ===================== */
+/* ===================== 맘푸드일지 (세금계산서 업로드 -> 달력) ===================== */
 function nextInboundLogId() {
   return 'ilog_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
 }
@@ -4835,7 +4787,7 @@ document.getElementById('inboundFileInput').addEventListener('change', async (e)
   alert(msg);
 });
 
-/* ===================== 입고일지: 세금계산서 없이 날짜를 직접 선택해 내역 추가 ===================== */
+/* ===================== 맘푸드일지: 세금계산서 없이 날짜를 직접 선택해 내역 추가 ===================== */
 let manualCalYear, manualCalMonth, manualSelectedDate;
 
 document.getElementById('btnInboundManual').addEventListener('click', () => {
@@ -5057,9 +5009,11 @@ function renderInboundCalendar() {
     }
   });
   const monthProdDays = Object.keys(prodRecByDate).filter(d => d.slice(0, 7) === monthPrefix).length;
+  const monthHolidays = Object.keys(appState.journal).filter(d => d.slice(0, 7) === monthPrefix && appState.journal[d] && appState.journal[d].holiday).length;
   document.getElementById('inboundCalSummary').textContent =
     `이번 달 입고 ${fmtNum(monthTotalCount)}건 · 합계 ${fmtNum(monthTotalAmount)}원`
-    + (monthProdDays > 0 ? ` · 생산 기록 ${monthProdDays}일` : '');
+    + (monthProdDays > 0 ? ` · 생산 기록 ${monthProdDays}일` : '')
+    + (monthHolidays > 0 ? ` · 휴무 ${monthHolidays}일` : '');
 
   const weekCount = totalCells / 7;
   // 헤더 행(요일)은 내용 높이만큼만, 나머지 주(week) 행들은 남는 세로 공간을 균등하게 나눠 갖도록 지정
@@ -5074,9 +5028,12 @@ function renderInboundCalendar() {
     const isCurMonth = cellDate.getMonth() === m;
     const cell = document.createElement('div');
     cell.className = 'calDayCell';
+    cell.title = '더블클릭: 일지 작성';
     if (!isCurMonth) cell.classList.add('otherMonth');
     if (dateStr === todayStr) cell.classList.add('today');
     if (dateStr === inboundSelectedDate) cell.classList.add('selectedDay');
+    const journalEntry = appState.journal[dateStr];
+    if (journalEntry && journalEntry.holiday) cell.classList.add('holidayDay');
 
     const numSpan = document.createElement('span');
     const dNum = cellDate.getDate();
@@ -5088,6 +5045,26 @@ function renderInboundCalendar() {
       numSpan.textContent = dNum;
     }
     cell.appendChild(numSpan);
+
+    if (journalEntry) {
+      if (journalEntry.holiday) {
+        const badge = document.createElement('div');
+        badge.className = 'dayBadge holidayBadge';
+        badge.textContent = '휴무';
+        cell.appendChild(badge);
+      }
+      const summaryText = journalCellSummary(journalEntry);
+      if (summaryText) {
+        const badge = document.createElement('div');
+        badge.className = 'dayBadge journalBadge';
+        badge.textContent = '일지';
+        cell.appendChild(badge);
+        const preview = document.createElement('div');
+        preview.className = 'dayItemPreview';
+        preview.textContent = summaryText;
+        cell.appendChild(preview);
+      }
+    }
 
     const dayRows = byDate[dateStr] || [];
     if (dayRows.length > 0) {
@@ -5114,10 +5091,16 @@ function renderInboundCalendar() {
     }
 
     const clickDateStr = dateStr;
-    cell.addEventListener('click', () => {
+    cell.addEventListener('click', (e) => {
+      // 클릭할 때마다 달력 칸을 새로 그리기 때문에 브라우저의 dblclick 이벤트는 (이미 지워진 칸으로 가서) 받을 수 없다.
+      // 그래서 "같은 날짜를 연달아 두 번 클릭"했는지를 여기서 직접 판단한다.
+      const now = Date.now();
+      const isDouble = e.detail >= 2 || (lastCalClick.date === clickDateStr && now - lastCalClick.time < 450);
+      lastCalClick = isDouble ? { date: null, time: 0 } : { date: clickDateStr, time: now };
       inboundSelectedDate = clickDateStr;
       renderInboundCalendar();
       renderInboundDetail(clickDateStr);
+      if (isDouble) openJournalModal(clickDateStr);
     });
 
     body.appendChild(cell);
@@ -5180,13 +5163,14 @@ function renderInboundDetail(dateStr) {
   listEl.innerHTML = '';
   if (!dateStr) {
     titleEl.textContent = '날짜를 선택하세요';
-    emptyEl.textContent = '달력에서 날짜를 클릭하면 그날 입고된 내역을 볼 수 있습니다.';
+    emptyEl.textContent = '달력에서 날짜를 클릭하면 그날 내역을 볼 수 있고, 더블클릭하면 일지를 작성할 수 있습니다.';
     emptyEl.classList.remove('hidden');
     return;
   }
   const byDate = computeInboundByDate();
   const rows = byDate[dateStr] || [];
-  titleEl.textContent = dateStr;
+  titleEl.textContent = journalDateLabel(dateStr);
+  listEl.appendChild(buildJournalDetail(dateStr));
   const prodRec = computeProdRecordByDate()[dateStr];
   if (prodRec) listEl.appendChild(buildProdRecordDetail(prodRec));
   if (rows.length === 0) {
@@ -5255,9 +5239,131 @@ function renderInbound() {
   renderInboundUploadSummary();
 }
 
+/* ===================== 맘푸드일지: 날짜별 일지 (달력에서 날짜 더블클릭) =====================
+   퇴근시간 / 재고 / 입고 / 출고 / 메모를 날짜마다 적고, 휴무일로 지정할 수 있다.
+   appState.journal['YYYY-MM-DD'] 에 저장되며, 아무 내용도 없으면 그 날짜 항목 자체를 지운다. */
+const JOURNAL_TEXT_FIELDS = [
+  { key: 'stock', label: '재고', inputId: 'journalStock' },
+  { key: 'inbound', label: '입고', inputId: 'journalInbound' },
+  { key: 'outbound', label: '출고', inputId: 'journalOutbound' },
+  { key: 'memo', label: '메모', inputId: 'journalMemo' },
+];
+let journalEditingDate = null;
+let lastCalClick = { date: null, time: 0 }; // 달력 칸 더블클릭 판단용
+
+function journalDateLabel(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${dateStr} (${['일', '월', '화', '수', '목', '금', '토'][new Date(y, m - 1, d).getDay()]})`;
+}
+// 달력 칸에 보여줄 한 줄 요약 (예: "퇴근 18:30 · 재고·입고")
+function journalCellSummary(entry) {
+  const parts = [];
+  if (entry.offTime) parts.push(`퇴근 ${entry.offTime}`);
+  const filled = JOURNAL_TEXT_FIELDS.filter(f => entry[f.key]).map(f => f.label);
+  if (filled.length > 0) parts.push(filled.join('·'));
+  return parts.join(' · ');
+}
+function openJournalModal(dateStr) {
+  journalEditingDate = dateStr;
+  const entry = appState.journal[dateStr] || {};
+  document.getElementById('journalModalTitle').textContent = `${journalDateLabel(dateStr)} 일지`;
+  document.getElementById('journalHoliday').checked = !!entry.holiday;
+  document.getElementById('journalOffTime').value = entry.offTime || '';
+  JOURNAL_TEXT_FIELDS.forEach(f => { document.getElementById(f.inputId).value = entry[f.key] || ''; });
+  document.getElementById('journalDelete').classList.toggle('hidden', !appState.journal[dateStr]);
+  showModal('journalModal');
+}
+function closeJournalModal() {
+  journalEditingDate = null;
+  hideModal('journalModal');
+}
+// 입력 중이던 내용이 저장된 내용과 다른지 (실수로 닫아서 날리는 것을 막기 위해 확인)
+function journalModalHasChanges() {
+  if (!journalEditingDate) return false;
+  const entry = appState.journal[journalEditingDate] || {};
+  if (document.getElementById('journalHoliday').checked !== !!entry.holiday) return true;
+  if (document.getElementById('journalOffTime').value !== (entry.offTime || '')) return true;
+  return JOURNAL_TEXT_FIELDS.some(f => document.getElementById(f.inputId).value.trim() !== (entry[f.key] || ''));
+}
+document.getElementById('journalCancel').addEventListener('click', () => {
+  if (journalModalHasChanges() && !confirm('입력한 내용을 저장하지 않고 닫을까요?')) return;
+  closeJournalModal();
+});
+document.getElementById('journalSave').addEventListener('click', () => {
+  const dateStr = journalEditingDate;
+  if (!dateStr) return;
+  const entry = { holiday: document.getElementById('journalHoliday').checked, offTime: document.getElementById('journalOffTime').value || '' };
+  JOURNAL_TEXT_FIELDS.forEach(f => { entry[f.key] = document.getElementById(f.inputId).value.trim(); });
+  const isEmpty = !entry.holiday && !entry.offTime && JOURNAL_TEXT_FIELDS.every(f => !entry[f.key]);
+  if (isEmpty) {
+    delete appState.journal[dateStr];
+  } else {
+    entry.updatedAt = Date.now();
+    appState.journal[dateStr] = entry;
+  }
+  saveState();
+  closeJournalModal();
+  renderInbound();
+});
+document.getElementById('journalDelete').addEventListener('click', () => {
+  const dateStr = journalEditingDate;
+  if (!dateStr || !appState.journal[dateStr]) return;
+  if (!confirm(`${journalDateLabel(dateStr)} 일지를 삭제합니다. 계속할까요?`)) return;
+  delete appState.journal[dateStr];
+  saveState();
+  closeJournalModal();
+  renderInbound();
+});
+
+// 선택한 날짜의 일지를 오른쪽 상세 패널용 블록으로 만든다
+function buildJournalDetail(dateStr) {
+  const entry = appState.journal[dateStr];
+  const wrap = document.createElement('div');
+  wrap.className = 'inboundDetailRow journalDetailRow';
+  const head = document.createElement('div');
+  head.className = 'idrVendor';
+  head.textContent = '일지';
+  if (entry && entry.holiday) {
+    const tag = document.createElement('span');
+    tag.className = 'idrHolidayTag';
+    tag.textContent = '휴무';
+    head.appendChild(tag);
+  }
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'journalEditBtn';
+  editBtn.textContent = entry ? '수정' : '일지 작성';
+  editBtn.addEventListener('click', () => openJournalModal(dateStr));
+  head.appendChild(editBtn);
+  wrap.appendChild(head);
+
+  if (!entry) {
+    const note = document.createElement('div');
+    note.className = 'idrMeta';
+    note.textContent = '작성된 일지가 없습니다.';
+    wrap.appendChild(note);
+    return wrap;
+  }
+  const addField = (label, text) => {
+    const labelEl = document.createElement('div');
+    labelEl.className = 'journalFieldLabel';
+    labelEl.textContent = label;
+    const textEl = document.createElement('div');
+    textEl.className = 'journalFieldText';
+    textEl.textContent = text;
+    wrap.appendChild(labelEl);
+    wrap.appendChild(textEl);
+  };
+  if (entry.offTime) addField('퇴근시간', entry.offTime);
+  JOURNAL_TEXT_FIELDS.forEach(f => { if (entry[f.key]) addField(f.label, entry[f.key]); });
+  return wrap;
+}
+
 /* ===================== 초기화 ===================== */
 document.getElementById('overlay').addEventListener('click', () => {
-  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal','migrateModal','dataManageModal'].forEach(id => hideModal(id));
+  // 일지는 길게 적는 내용이라, 바깥을 잘못 눌러서 입력하던 내용이 사라지지 않도록 [취소]/[저장]으로만 닫는다
+  if (!document.getElementById('journalModal').classList.contains('hidden')) return;
+  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal','migrateModal'].forEach(id => hideModal(id));
 });
 
 /* ===================== 접근 제한(비밀번호 잠금) =====================
