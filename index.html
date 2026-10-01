@@ -151,9 +151,12 @@
   .calDayCell.selectedDay { background:#e6ecf9; outline:2px solid #3f5273; outline-offset:-2px; }
   .calDayCell.today .dayNum { color:#fff; background:#3f5273; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; }
   .dayNum { font-size:12px; font-weight:bold; color:#333; }
-  .dayNum.monthMark { color:#8a5a1f; background:#fdf1de; border-radius:4px; padding:1px 5px; display:inline-block; }
+  .dayNum.monthMark { color:#8a5a1f; background:#fdf1de; border-radius:4px; padding:1px 5px; display:inline-block; align-self:flex-start; white-space:nowrap; }
   .calDayCell.otherMonth .dayNum { color:#b7bcc4; }
   .calDayCell.otherMonth .dayNum.monthMark { color:#a98a5e; background:#f1ece2; }
+  /* 오늘이 1일이면 "10월 1"처럼 글자가 길어서 오늘 표시용 동그라미(20px) 안에 들어가지 못하고 세로로 깨진다.
+     이 경우에는 동그라미 대신 글자 길이에 맞는 알약 모양으로 표시한다(다른 달 화면에서 보일 때도 동일). */
+  .calDayCell.today .dayNum.monthMark { width:auto; height:auto; padding:1px 7px; border-radius:10px; color:#fff; background:#3f5273; }
   .calDayCell.otherMonth .dayBadge { background:#e6e8eb; color:#8a8f96; }
   .calDayCell.otherMonth .dayItemPreview { color:#aeb2b8; }
   .dayBadge { display:inline-block; margin-top:4px; padding:1px 6px; border-radius:8px; background:#e3f5e6; color:#1e7a35; font-size:10px; font-weight:bold; }
@@ -177,7 +180,6 @@
   .calDayCell.otherMonth.holidayDay { background:#f3e9e9; }
   .dayBadge { align-self:flex-start; } /* 칸 너비만큼 늘어나지 않고 글자 크기만큼만 */
   .dayBadge.holidayBadge { background:#fbe2e0; color:#c0271a; }
-  .dayBadge.journalBadge { background:#dce8fb; color:#1c4f9c; }
   .journalDetailRow { background:#f5f8fd; border:1px solid #d5e0f2; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
   .journalEditBtn { float:right; background:#3f5273; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; }
   .journalEditBtn:hover { background:#4c6389; }
@@ -417,15 +419,15 @@
 </div>
 
 <div id="globalBar">
-  <button class="appTabBtn active" data-app="settlement">자동정산기</button>
+  <button class="appTabBtn active" data-app="inbound">맘푸드일지</button>
+  <button class="appTabBtn" data-app="settlement">자동정산기</button>
   <button class="appTabBtn" data-app="production">생산량계산기</button>
-  <button class="appTabBtn" data-app="inbound">맘푸드일지</button>
   <span id="syncStatus"></span>
 </div>
 <div id="syncLoading" class="hidden"><div id="syncLoadingMsg"></div></div>
 <div id="syncToast" class="hidden"></div>
 
-<div id="appSettlement" class="appScreen active">
+<div id="appSettlement" class="appScreen">
 <div id="toolbar">
   <button id="btnNewProfile">① 프로필생성</button>
   <button id="btnUploadInvoice">② 송장업로드</button>
@@ -591,7 +593,7 @@
   </div>
 </div>
 
-<div id="appInbound" class="appScreen">
+<div id="appInbound" class="appScreen active">
   <div id="inboundToolbar">
     <button id="btnInboundUpload">세금계산서업로드</button>
     <button id="btnInboundManual" style="background:#6b4c9a;">직접입력</button>
@@ -5060,12 +5062,6 @@ function renderInboundCalendar() {
         cell.appendChild(badge);
       }
       const summaryText = journalCellSummary(journalEntry);
-      if (summaryText || journalEntry.memo) {
-        const badge = document.createElement('div');
-        badge.className = 'dayBadge journalBadge';
-        badge.textContent = '일지';
-        cell.appendChild(badge);
-      }
       if (summaryText) {
         const preview = document.createElement('div');
         preview.className = 'dayItemPreview';
@@ -5512,6 +5508,7 @@ setInterval(checkLockStatus, 30 * 1000);
 
 loadState();
 renderAll();
+renderInbound(); // 첫 화면은 맘푸드일지
 if (SERVER_MODE) {
   if (isUnlockedRecently()) startSync();
 } else {
