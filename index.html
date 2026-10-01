@@ -163,6 +163,13 @@
   .inboundDetailRow .idrVendor { font-weight:bold; color:#2b3a55; }
   .inboundDetailRow .idrItem { margin-top:2px; }
   .inboundDetailRow .idrMeta { margin-top:2px; color:#777; }
+  .dayBadge.prodBadge { background:#fff3cd; color:#8a5a1f; }
+  .calDayCell.otherMonth .dayBadge.prodBadge { background:#f1ece2; color:#a98a5e; }
+  .prodRecordRow { background:#fffaf0; border:1px solid #f0e2bd; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
+  .prodRecordRow details { margin-top:4px; }
+  .prodRecordRow summary { cursor:pointer; color:#8a5a1f; font-size:11px; }
+  .prodRecordRow .delBtn { margin-left:4px; }
+  .idrAutoTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fff3cd; color:#8a5a1f; font-size:10px; font-weight:bold; vertical-align:middle; }
   .idrManualTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#efe6f7; color:#6b4c9a; font-size:10px; font-weight:bold; vertical-align:middle; }
 
   /* 세금계산서 직접입력 모달 안의 소형 날짜 선택용 달력 */
@@ -357,7 +364,13 @@
   }
   #lockSubmit:hover { background: #3f5273; }
   /* ===== 서버 공유 저장 상태 표시 ===== */
-  #syncStatus { margin-left:auto; font-size:12px; color:#cfd6e4; white-space:nowrap; }
+  #syncStatus { margin-left:4px; font-size:12px; color:#cfd6e4; white-space:nowrap; }
+  #btnDataManage {
+    margin-left:auto; background:transparent; color:#cfd6e4; border:1px solid #4c6389; border-radius:4px;
+    padding:4px 10px; font-size:12px; cursor:pointer;
+  }
+  #btnDataManage:hover { background:#2b3a55; color:#fff; }
+  #dataManageModal .dataBtn { margin-top:8px; padding:7px 16px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
   #syncLoading {
     position:fixed; inset:0; z-index:9000; background:rgba(28,37,54,0.82);
     display:flex; align-items:center; justify-content:center; padding:20px;
@@ -386,6 +399,7 @@
   <button class="appTabBtn active" data-app="settlement">자동정산기</button>
   <button class="appTabBtn" data-app="production">생산량계산기</button>
   <button class="appTabBtn" data-app="inbound">입고일지</button>
+  <button id="btnDataManage" type="button">데이터 관리</button>
   <span id="syncStatus"></span>
 </div>
 <div id="syncLoading" class="hidden"><div id="syncLoadingMsg"></div></div>
@@ -516,6 +530,7 @@
 
         <div class="sectionTitle">생산 횟수 요약</div>
         <div id="prodRunSummary"></div>
+        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 입고일지의 전날 날짜 칸에 자동으로 기록됩니다. 마지막 기록 이후 내역이 바뀌지 않았으면 다시 기록하지 않습니다.</div>
       </div>
     </div>
   </div>
@@ -891,6 +906,33 @@
   </div>
 </div>
 
+<!-- 데이터 관리: 백업 내보내기 / 가져오기 -->
+<div id="dataManageModal" class="modal hidden">
+  <h2>데이터 관리</h2>
+  <div id="dataLocalNote" class="smallNote hidden" style="background:#fff3cd;color:#5c4a12;padding:8px 10px;border-radius:4px;margin-bottom:10px;">
+    지금은 파일을 직접 열어서 쓰는 화면이라, 데이터가 이 컴퓨터에만 저장돼 있습니다.
+    공유 사이트로 옮기려면 여기서 [백업 파일로 내보내기]를 한 뒤, 사이트에 접속해서 [데이터 관리 → 백업 파일 가져오기]로 그 파일을 올리세요.
+  </div>
+  <div class="sectionTitle" style="margin-top:0;border-top:none;padding-top:0;">백업 파일로 내보내기</div>
+  <div class="smallNote">지금 보이는 모든 데이터(프로필·정산내역·단가·생산량계산기·입고일지)를 파일 하나로 저장합니다.</div>
+  <button type="button" id="btnDataExport" class="dataBtn btnPrimary">백업 파일로 내보내기</button>
+
+  <div class="sectionTitle">백업 파일 가져오기</div>
+  <div class="smallNote">내보낸 백업 파일의 내용을 현재 데이터에 합칩니다. 현재 데이터는 지워지지 않습니다.</div>
+  <button type="button" id="btnDataImport" class="dataBtn btnPrimary">백업 파일 가져오기</button>
+
+  <div id="dataLegacyArea">
+    <div class="sectionTitle">이 브라우저에 남아 있는 예전 데이터</div>
+    <div class="smallNote">공유 서버로 바뀌기 전에 이 브라우저에서 이 사이트 주소로 쓰던 데이터가 남아 있는지 다시 확인하고 올립니다.</div>
+    <button type="button" id="btnDataLegacy" class="dataBtn btnGhost">예전 데이터 확인</button>
+  </div>
+
+  <div class="modalBtns">
+    <button class="btnGhost" id="dataManageClose">닫기</button>
+  </div>
+</div>
+<input type="file" id="dataImportInput" accept=".json,application/json" style="display:none">
+
 <script>
 /* ===================== 상태 & 유틸 ===================== */
 const STORAGE_KEY = 'autoSettleApp_v1';
@@ -915,6 +957,8 @@ let appState = {
   prodRows: [], prodUploadLog: [], prodOverrides: {}, prodRemovedRows: [],
   inboundRows: [], inboundUploadLog: [],
   inboundColMap: { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 },
+  prodDaily: { sig: '', summary: null, changedAt: 0, recorded: false }, // 생산량 정리내역의 현재 요약(입고일지 자동 기록용)
+  prodDailyRecords: [], // 입고일지에 자동 기록된 날짜별 생산 요약
 };
 
 let prodFixOrigName = null; // 인식현황 탭 "상품수정" 모달에서 현재 수정 중인 원본 상품명
@@ -978,9 +1022,15 @@ function normalizeState(appState) {
   if (!appState.inboundColMap || typeof appState.inboundColMap !== 'object') {
     appState.inboundColMap = { date: '', vendor: '', itemName: '', qty: '', amount: '', startRow: 2 };
   }
+  if (!appState.prodDaily || typeof appState.prodDaily !== 'object') {
+    appState.prodDaily = { sig: '', summary: null, changedAt: 0, recorded: false };
+  }
+  if (!Array.isArray(appState.prodDailyRecords)) appState.prodDailyRecords = [];
   return appState;
 }
 function saveState() {
+  // 생산량 정리내역이 바뀌었는지, 06시 마감이 지났는지 저장할 때마다 함께 확인
+  if (!SERVER_MODE || sync.ready) prodDailyCheck(Date.now());
   if (!SERVER_MODE) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
     return;
@@ -995,7 +1045,7 @@ function saveState() {
    웹(http/https)으로 접속하면 모든 사용자가 같은 서버 데이터를 본다 (/api, Cloudflare Pages Functions + D1).
    파일을 직접 더블클릭해서 연 경우(file://)에는 예전처럼 이 컴퓨터의 localStorage에만 저장한다.
 
-   데이터는 "섹션" 단위로 주고받는다: prod(생산량계산기), inbound(입고일지), profile:<id>(거래처 프로필 1개).
+   데이터는 "섹션" 단위로 주고받는다: prod(생산량계산기), inbound(입고일지), proddaily(생산 자동 기록), profile:<id>(거래처 프로필 1개).
    섹션마다 버전 번호가 있어서, 내가 수정하는 사이 다른 사람이 같은 섹션을 먼저 저장했으면
    서버가 저장을 거절(409)하고 최신 내용을 돌려준다 -> 서로의 수정을 모르고 덮어쓰는 일을 막는다. */
 const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
@@ -1004,6 +1054,7 @@ const TOKEN_STORAGE_KEY = 'autoSettleApp_token';
 const MIGRATION_FLAG_KEY = 'autoSettleApp_migratedToServer';
 const PROD_STATE_KEYS = ['prodRows', 'prodUploadLog', 'prodOverrides', 'prodRemovedRows'];
 const INBOUND_STATE_KEYS = ['inboundRows', 'inboundUploadLog', 'inboundColMap'];
+const PRODDAILY_STATE_KEYS = ['prodDaily', 'prodDailyRecords'];
 const PROFILE_SECTION_PREFIX = 'profile:';
 const PUSH_DELAY_MS = 800;
 const POLL_INTERVAL_MS = 5000;       // 다른 사람의 변경사항을 확인하는 주기
@@ -1030,6 +1081,7 @@ function buildSections(state) {
   const out = {
     prod: JSON.stringify(pick(PROD_STATE_KEYS)),
     inbound: JSON.stringify(pick(INBOUND_STATE_KEYS)),
+    proddaily: JSON.stringify(pick(PRODDAILY_STATE_KEYS)),
   };
   state.profiles.forEach(p => { out[PROFILE_SECTION_PREFIX + p.id] = JSON.stringify(p); });
   return out;
@@ -1040,6 +1092,8 @@ function setLocalSection(key, obj) {
     PROD_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
   } else if (key === 'inbound') {
     INBOUND_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
+  } else if (key === 'proddaily') {
+    PRODDAILY_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
   } else if (key.startsWith(PROFILE_SECTION_PREFIX)) {
     const id = key.slice(PROFILE_SECTION_PREFIX.length);
     if (obj.id !== id) return;
@@ -1136,8 +1190,9 @@ function refreshAfterRemote(changedKeys, conflictKeys) {
     else renderProfileSelect();
   }
   if (changedKeys.includes('prod') && document.getElementById('appProduction').classList.contains('active')) renderProduction();
-  if (changedKeys.includes('inbound') && document.getElementById('appInbound').classList.contains('active')) renderInbound();
-  if (conflictKeys.length > 0) {
+  if ((changedKeys.includes('inbound') || changedKeys.includes('proddaily')) && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  // proddaily는 사람이 입력하는 내용이 아니라 각 화면이 자동으로 계산해 올리는 값이라, 겹쳐도 알릴 필요가 없다
+  if (conflictKeys.some(k => k !== 'proddaily')) {
     showSyncToast('다른 사용자가 같은 내용을 먼저 수정해서, 방금 변경한 내용이 반영되지 않았습니다. 화면을 최신 내용으로 바꿨으니 확인 후 다시 입력해 주세요.');
   }
 }
@@ -1323,23 +1378,32 @@ function mergeUniqueItems(serverList, localList) {
   const seen = new Set(serverList.map(x => JSON.stringify(x)));
   return serverList.concat(localList.filter(x => !seen.has(JSON.stringify(x))));
 }
-function offerLegacyMigration() {
+// force=true: [데이터 관리]에서 직접 눌렀을 때 - 이미 물어봤던 브라우저라도 다시 확인하고, 없으면 없다고 알려준다
+function offerLegacyMigration(force) {
   let legacy = null;
   try {
-    if (localStorage.getItem(MIGRATION_FLAG_KEY)) return;
+    if (!force && localStorage.getItem(MIGRATION_FLAG_KEY)) return;
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) legacy = normalizeState(JSON.parse(raw));
-  } catch (e) { console.warn('예전 데이터 읽기 실패', e); return; }
-  if (!legacy) return;
+  } catch (e) { console.warn('예전 데이터 읽기 실패', e); }
 
-  const serverIds = new Set(appState.profiles.map(p => p.id));
-  const newProfiles = legacy.profiles.filter(p => p && p.id && !serverIds.has(p.id));
   const lines = [];
-  if (newProfiles.length > 0) lines.push(`자동정산기 프로필 ${newProfiles.length}개: ${newProfiles.map(p => p.name).join(', ')}`);
-  if (legacy.prodRows.length > 0) lines.push(`생산량계산기 발주내역 ${fmtNum(legacy.prodRows.length)}건`);
-  if (Object.keys(legacy.prodOverrides).length > 0) lines.push(`생산량계산기 수동 매핑 ${Object.keys(legacy.prodOverrides).length}개`);
-  if (legacy.inboundRows.length > 0) lines.push(`입고일지 ${fmtNum(legacy.inboundRows.length)}건`);
-  if (lines.length === 0) return;
+  if (legacy) {
+    const serverIds = new Set(appState.profiles.map(p => p.id));
+    const newProfiles = legacy.profiles.filter(p => p && p.id && !serverIds.has(p.id));
+    if (newProfiles.length > 0) lines.push(`자동정산기 프로필 ${newProfiles.length}개: ${newProfiles.map(p => p.name).join(', ')}`);
+    if (legacy.prodRows.length > 0) lines.push(`생산량계산기 발주내역 ${fmtNum(legacy.prodRows.length)}건`);
+    if (Object.keys(legacy.prodOverrides).length > 0) lines.push(`생산량계산기 수동 매핑 ${Object.keys(legacy.prodOverrides).length}개`);
+    if (legacy.inboundRows.length > 0) lines.push(`입고일지 ${fmtNum(legacy.inboundRows.length)}건`);
+  }
+  if (lines.length === 0) {
+    if (force) {
+      alert('이 브라우저(이 사이트 주소)에는 올릴 예전 데이터가 없습니다.\n\n'
+        + '예전에 index.html 파일을 더블클릭해서 쓰셨다면 데이터가 "파일로 연 화면" 쪽에 저장돼 있습니다.\n'
+        + '그 화면에서 [데이터 관리 → 백업 파일로 내보내기]를 한 뒤, 여기서 [백업 파일 가져오기]로 올려주세요.');
+    }
+    return;
+  }
 
   legacyStateForMigration = legacy;
   const listEl = document.getElementById('migrateSummary');
@@ -1355,35 +1419,114 @@ function offerLegacyMigration() {
 function setMigrationFlag(value) {
   try { localStorage.setItem(MIGRATION_FLAG_KEY, value); } catch (e) { /* 무시 */ }
 }
+// 다른 곳(이 브라우저의 예전 저장분, 백업 파일)에서 온 데이터를 현재 데이터에 합친다. 현재 데이터는 지우지 않는다.
+// overwriteSameProfiles=true면 같은 프로필(id 동일)은 들어온 쪽 내용으로 바꾼다.
+function mergeIncomingState(incoming, overwriteSameProfiles) {
+  const result = { profilesAdded: 0, profilesReplaced: 0, profilesKept: 0, prodRowsAdded: 0, inboundRowsAdded: 0 };
+  const names = new Set(appState.profiles.map(p => p.name));
+  incoming.profiles.forEach(p => {
+    if (!p || !p.id) return;
+    const idx = appState.profiles.findIndex(x => x.id === p.id);
+    if (idx >= 0) {
+      if (JSON.stringify(appState.profiles[idx]) === JSON.stringify(p)) return;
+      if (overwriteSameProfiles) { appState.profiles[idx] = p; result.profilesReplaced++; }
+      else result.profilesKept++;
+      return;
+    }
+    if (names.has(p.name)) p.name += ' (가져온 데이터)'; // 같은 이름의 다른 프로필이 이미 있으면 구분되게 표시
+    names.add(p.name);
+    appState.profiles.push(p);
+    result.profilesAdded++;
+  });
+  const prodBefore = appState.prodRows.length;
+  const inboundBefore = appState.inboundRows.length;
+  appState.prodRows = mergeUniqueItems(appState.prodRows, incoming.prodRows);
+  appState.prodUploadLog = mergeUniqueItems(appState.prodUploadLog, incoming.prodUploadLog);
+  appState.prodRemovedRows = mergeUniqueItems(appState.prodRemovedRows, incoming.prodRemovedRows);
+  appState.prodOverrides = Object.assign({}, incoming.prodOverrides, appState.prodOverrides); // 겹치면 현재 쪽 우선
+  appState.inboundRows = mergeUniqueItems(appState.inboundRows, incoming.inboundRows);
+  appState.inboundUploadLog = mergeUniqueItems(appState.inboundUploadLog, incoming.inboundUploadLog);
+  const colMap = appState.inboundColMap;
+  if (!['date', 'vendor', 'itemName', 'qty', 'amount'].some(k => colMap[k])) appState.inboundColMap = incoming.inboundColMap;
+  const recIds = new Set(appState.prodDailyRecords.map(r => r.id));
+  (incoming.prodDailyRecords || []).forEach(r => { if (r && r.id && !recIds.has(r.id)) appState.prodDailyRecords.push(r); });
+  result.prodRowsAdded = appState.prodRows.length - prodBefore;
+  result.inboundRowsAdded = appState.inboundRows.length - inboundBefore;
+
+  fixCurrentProfile();
+  saveState();
+  renderAll();
+  if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
+  if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  return result;
+}
 function runLegacyMigration() {
   const legacy = legacyStateForMigration;
   legacyStateForMigration = null;
   hideModal('migrateModal');
   if (!legacy) return;
-
-  const serverIds = new Set(appState.profiles.map(p => p.id));
-  const serverNames = new Set(appState.profiles.map(p => p.name));
-  legacy.profiles.forEach(p => {
-    if (!p || !p.id || serverIds.has(p.id)) return;
-    if (serverNames.has(p.name)) p.name += ' (기존 PC 데이터)'; // 서버에 같은 이름의 프로필이 이미 있으면 구분되게 표시
-    appState.profiles.push(p);
-  });
-  appState.prodRows = mergeUniqueItems(appState.prodRows, legacy.prodRows);
-  appState.prodUploadLog = mergeUniqueItems(appState.prodUploadLog, legacy.prodUploadLog);
-  appState.prodRemovedRows = mergeUniqueItems(appState.prodRemovedRows, legacy.prodRemovedRows);
-  appState.prodOverrides = Object.assign({}, legacy.prodOverrides, appState.prodOverrides); // 겹치면 서버 쪽 우선
-  appState.inboundRows = mergeUniqueItems(appState.inboundRows, legacy.inboundRows);
-  appState.inboundUploadLog = mergeUniqueItems(appState.inboundUploadLog, legacy.inboundUploadLog);
-  const serverColMap = appState.inboundColMap;
-  if (!['date', 'vendor', 'itemName', 'qty', 'amount'].some(k => serverColMap[k])) appState.inboundColMap = legacy.inboundColMap;
-
-  fixCurrentProfile();
+  mergeIncomingState(legacy, false);
   setMigrationFlag('uploaded');
-  saveState();
-  renderAll();
-  if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
-  if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
 }
+
+/* ----- 데이터 관리: 백업 파일 내보내기 / 가져오기 ----- */
+const BACKUP_FILE_MARK = 'momfood-backup';
+document.getElementById('btnDataManage').addEventListener('click', () => {
+  document.getElementById('dataLegacyArea').classList.toggle('hidden', !SERVER_MODE);
+  document.getElementById('dataLocalNote').classList.toggle('hidden', SERVER_MODE);
+  showModal('dataManageModal');
+});
+document.getElementById('dataManageClose').addEventListener('click', () => hideModal('dataManageModal'));
+document.getElementById('btnDataExport').addEventListener('click', () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const stamp = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
+  const blob = new Blob([JSON.stringify({ type: BACKUP_FILE_MARK, version: 1, exportedAt: d.toISOString(), state: appState })], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `맘푸드_백업_${stamp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+});
+document.getElementById('btnDataImport').addEventListener('click', () => document.getElementById('dataImportInput').click());
+document.getElementById('dataImportInput').addEventListener('change', async (e) => {
+  const file = (e.target.files || [])[0];
+  e.target.value = '';
+  if (!file) return;
+  let incoming = null;
+  try {
+    const parsed = JSON.parse(await file.text());
+    const state = parsed && parsed.type === BACKUP_FILE_MARK ? parsed.state : parsed;
+    if (state && typeof state === 'object' && (Array.isArray(state.profiles) || Array.isArray(state.prodRows) || Array.isArray(state.inboundRows))) {
+      incoming = normalizeState(state);
+    }
+  } catch (err) { console.warn('백업 파일 읽기 실패', err); }
+  if (!incoming) { alert('맘푸드 업무시스템의 백업 파일이 아니거나, 파일을 읽을 수 없습니다.'); return; }
+
+  const sameButDifferent = incoming.profiles.filter(p => {
+    const cur = p && appState.profiles.find(x => x.id === p.id);
+    return cur && JSON.stringify(cur) !== JSON.stringify(p);
+  });
+  let overwrite = false;
+  if (sameButDifferent.length > 0) {
+    overwrite = confirm(`이미 있는 프로필 ${sameButDifferent.length}개(${sameButDifferent.map(p => p.name).join(', ')})가 백업 파일과 내용이 다릅니다.\n\n`
+      + '[확인] 백업 파일의 내용으로 바꾸기\n[취소] 현재 내용 그대로 두기 (나머지 데이터만 가져옴)');
+  }
+  const r = mergeIncomingState(incoming, overwrite);
+  hideModal('dataManageModal');
+  alert('가져오기가 끝났습니다.\n'
+    + `- 프로필: ${r.profilesAdded}개 추가`
+    + (r.profilesReplaced ? `, ${r.profilesReplaced}개 교체` : '')
+    + (r.profilesKept ? `, ${r.profilesKept}개는 현재 내용 유지` : '') + '\n'
+    + `- 생산량계산기 발주내역: ${fmtNum(r.prodRowsAdded) || 0}건 추가\n`
+    + `- 입고일지: ${fmtNum(r.inboundRowsAdded) || 0}건 추가`);
+});
+document.getElementById('btnDataLegacy').addEventListener('click', () => {
+  hideModal('dataManageModal');
+  offerLegacyMigration(true);
+});
 document.getElementById('migrateUpload').addEventListener('click', runLegacyMigration);
 document.getElementById('migrateLater').addEventListener('click', () => hideModal('migrateModal'));
 document.getElementById('migrateNever').addEventListener('click', () => {
@@ -3953,6 +4096,98 @@ function renderProdSummary() {
   }
 }
 
+/* ===================== 생산량 정리내역 -> 입고일지 자동 기록 =====================
+   하루의 마감을 한국시간 오전 6시로 본다. 마감 시각이 지나면, 그 시점의 정리내역을 간략히 요약해서
+   입고일지의 "전날" 날짜 칸에 기록한다. (예: 10/1 06:00 ~ 10/2 05:59 사이에 정리된 내역 -> 10/1 칸)
+
+   서버에는 정해진 시각에 스스로 실행되는 프로그램이 없으므로, 화면을 열어 둔(또는 6시 이후 처음 여는) 브라우저가 대신 기록한다.
+   그래도 결과가 달라지지 않도록, "현재 정리내역 요약 + 마지막으로 바뀐 시각"을 항상 데이터에 함께 저장해 둔다(prodDaily).
+   발주내역을 바꾸려면 어차피 화면을 열어야 하고, 그때 먼저 '바뀌기 전 요약'으로 기록부터 남기기 때문에
+   6시가 한참 지나서 처음 접속하더라도 6시 시점의 내용이 정확히 기록된다.
+   정리내역이 마지막 기록 이후 바뀌지 않았다면 다음 날 다시 기록하지 않는다. */
+const PROD_DAY_CUTOFF_HOUR_KST = 6;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// ts 이후 처음 돌아오는 '한국시간 오전 6시'의 시각(ms)
+function nextProdCutoffAfter(ts) {
+  const shift = KST_OFFSET_MS - PROD_DAY_CUTOFF_HOUR_KST * 60 * 60 * 1000; // 이만큼 밀면 '한국시간 06:00'이 날짜 경계가 된다
+  return (Math.floor((ts + shift) / DAY_MS) + 1) * DAY_MS - shift;
+}
+function kstDateStr(ts) {
+  return new Date(ts + KST_OFFSET_MS).toISOString().slice(0, 10);
+}
+// 현재 발주내역 전체(파일 필터와 무관)의 정리내역을 입고일지용으로 간략하게 요약
+function buildProdDailySummary() {
+  const s = computeProductionSummary(appState.prodRows);
+  const totals = []; // 상품별 총 인분
+  PROD_DISPLAY_ORDER.forEach(cat => {
+    const servings = s.categoryServings[cat] || 0;
+    if (servings > 0) totals.push({ name: cat, servings });
+  });
+  if (s.otherServings > 0) totals.push({ name: '기타', servings: s.otherServings });
+  if (totals.length === 0) return { sig: '', summary: null };
+  const lines = Object.values(s.lineMap) // 정리 내역(상품 / 인분 / 세트수)
+    .filter(l => l.sets > 0)
+    .map(({ base, perSet, sets }) => ({ base, perSet, sets }))
+    .sort((a, b) => a.base.localeCompare(b.base, 'ko') || a.perSet - b.perSet);
+  const round2 = (n) => Math.round(n * 100) / 100;
+  const summary = { totals, lines, sobaRuns: round2(s.sobaRuns), kalguksuRuns: round2(s.kalguksuRuns) };
+  return { sig: JSON.stringify(summary), summary };
+}
+// 지금 기록하거나 요약을 갱신할 일이 있는지 (데이터는 바꾸지 않음)
+function prodDailyNeedsWork(now) {
+  const d = appState.prodDaily;
+  if (d.summary && !d.recorded && now >= nextProdCutoffAfter(d.changedAt)) return true;
+  return buildProdDailySummary().sig !== d.sig;
+}
+// 바뀐 것이 있으면 true (호출한 쪽에서 저장해야 함)
+function prodDailyCheck(now) {
+  const d = appState.prodDaily;
+  let changed = false;
+  // 1) 저장돼 있던 요약이 아직 기록 전이고 그 뒤로 마감(06:00)이 지났으면 입고일지에 기록
+  if (d.summary && !d.recorded) {
+    const cutoff = nextProdCutoffAfter(d.changedAt);
+    if (now >= cutoff) {
+      const date = kstDateStr(cutoff - DAY_MS);
+      const record = Object.assign({ id: 'pd_' + date, date, recordedAt: now }, d.summary);
+      appState.prodDailyRecords = appState.prodDailyRecords.filter(r => r.id !== record.id);
+      appState.prodDailyRecords.push(record);
+      d.recorded = true;
+      changed = true;
+    }
+  }
+  // 2) 현재 정리내역이 저장된 요약과 달라졌으면 갱신 (다음 마감 때 기록 대상이 됨)
+  const cur = buildProdDailySummary();
+  if (cur.sig !== d.sig) {
+    d.sig = cur.sig;
+    d.summary = cur.summary;
+    d.changedAt = now;
+    d.recorded = false;
+    changed = true;
+  }
+  return changed;
+}
+// 주기적으로 확인. 여러 사람이 화면을 열어 두고 있으면 6시에 동시에 기록하려 들기 때문에,
+// 각자 조금씩 다른 시간만큼 기다린 뒤(그 사이 다른 화면이 이미 기록했으면 그걸 받아서) 실행한다.
+let prodDailyRunAt = 0;
+function prodDailyTick() {
+  if (SERVER_MODE && (!sync.ready || isLocked() || sync.pushing || sync.dirty)) return;
+  const now = Date.now();
+  if (!prodDailyNeedsWork(now)) { prodDailyRunAt = 0; return; }
+  if (SERVER_MODE && !prodDailyRunAt) {
+    prodDailyRunAt = now + 3000 + Math.random() * 20000;
+    pullRemote().catch(() => {});
+    return;
+  }
+  if (now < prodDailyRunAt) return;
+  prodDailyRunAt = 0;
+  const recordCount = appState.prodDailyRecords.length;
+  saveState(); // saveState 안에서 prodDailyCheck가 실행된다
+  if (appState.prodDailyRecords.length !== recordCount && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+}
+setInterval(prodDailyTick, 10000);
+
 let prodUploadLogCollapsed = false; // 발주서 업로드 기록 접기/펼치기 상태
 function renderProdUploadLog() {
   const area = document.getElementById('prodUploadLog');
@@ -4793,8 +5028,16 @@ function computeInboundByDate() {
   return map;
 }
 
+// 날짜(YYYY-MM-DD) -> 그날로 자동 기록된 생산 요약
+function computeProdRecordByDate() {
+  const map = {};
+  appState.prodDailyRecords.forEach(r => { if (r && r.date) map[r.date] = r; });
+  return map;
+}
+
 function renderInboundCalendar() {
   const byDate = computeInboundByDate();
+  const prodRecByDate = computeProdRecordByDate();
   const y = inboundViewYear, m = inboundViewMonth;
   document.getElementById('inboundCalTitle').textContent = `${y}년 ${m + 1}월`;
   document.getElementById('inboundMonthPicker').value = `${y}-${String(m + 1).padStart(2, '0')}`;
@@ -4813,8 +5056,10 @@ function renderInboundCalendar() {
       rows.forEach(r => { monthTotalAmount += Number(r.amount) || 0; });
     }
   });
+  const monthProdDays = Object.keys(prodRecByDate).filter(d => d.slice(0, 7) === monthPrefix).length;
   document.getElementById('inboundCalSummary').textContent =
-    `이번 달 입고 ${fmtNum(monthTotalCount)}건 · 합계 ${fmtNum(monthTotalAmount)}원`;
+    `이번 달 입고 ${fmtNum(monthTotalCount)}건 · 합계 ${fmtNum(monthTotalAmount)}원`
+    + (monthProdDays > 0 ? ` · 생산 기록 ${monthProdDays}일` : '');
 
   const weekCount = totalCells / 7;
   // 헤더 행(요일)은 내용 높이만큼만, 나머지 주(week) 행들은 남는 세로 공간을 균등하게 나눠 갖도록 지정
@@ -4856,6 +5101,17 @@ function renderInboundCalendar() {
       preview.textContent = names.slice(0, 2).join(', ') + (names.length > 2 ? ` 외 ${names.length - 2}건` : '');
       cell.appendChild(preview);
     }
+    const prodRec = prodRecByDate[dateStr];
+    if (prodRec) {
+      const badge = document.createElement('div');
+      badge.className = 'dayBadge prodBadge';
+      badge.textContent = '생산';
+      cell.appendChild(badge);
+      const preview = document.createElement('div');
+      preview.className = 'dayItemPreview';
+      preview.textContent = (prodRec.totals || []).map(t => `${t.name} ${fmtNum(t.servings)}`).join(', ');
+      cell.appendChild(preview);
+    }
 
     const clickDateStr = dateStr;
     cell.addEventListener('click', () => {
@@ -4867,6 +5123,54 @@ function renderInboundCalendar() {
     body.appendChild(cell);
     cellDate.setDate(cellDate.getDate() + 1);
   }
+}
+
+// 선택한 날짜의 생산 자동 기록을 상세 패널용 블록으로 만든다
+function buildProdRecordDetail(rec) {
+  const wrap = document.createElement('div');
+  wrap.className = 'inboundDetailRow prodRecordRow';
+  const addLine = (className, text) => {
+    const div = document.createElement('div');
+    div.className = className;
+    div.textContent = text;
+    wrap.appendChild(div);
+    return div;
+  };
+  const head = addLine('idrVendor', '생산 기록');
+  const tag = document.createElement('span');
+  tag.className = 'idrAutoTag';
+  tag.textContent = '자동기록';
+  head.appendChild(tag);
+  (rec.totals || []).forEach(t => addLine('idrItem', `${t.name} ${fmtNum(t.servings)}인분`));
+  addLine('idrMeta', `생산횟수: 소바 ${(Number(rec.sobaRuns) || 0).toFixed(1)}회 · 칼국수 ${(Number(rec.kalguksuRuns) || 0).toFixed(1)}회`);
+
+  if ((rec.lines || []).length > 0) {
+    const details = document.createElement('details');
+    const summary = document.createElement('summary');
+    summary.textContent = '정리 내역 보기';
+    details.appendChild(summary);
+    rec.lines.forEach(l => {
+      const div = document.createElement('div');
+      div.className = 'idrMeta';
+      div.textContent = `${l.base} ${l.perSet}인 × ${fmtNum(l.sets)}개`;
+      details.appendChild(div);
+    });
+    wrap.appendChild(details);
+  }
+
+  const foot = addLine('idrMeta', rec.recordedAt ? `${fmtDateTime(rec.recordedAt)} 기록 ` : '');
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button';
+  delBtn.className = 'delBtn';
+  delBtn.textContent = '기록 삭제';
+  delBtn.addEventListener('click', () => {
+    if (!confirm(`${rec.date}의 생산 기록을 삭제합니다. 계속할까요?`)) return;
+    appState.prodDailyRecords = appState.prodDailyRecords.filter(r => r.id !== rec.id);
+    saveState();
+    renderInbound();
+  });
+  foot.appendChild(delBtn);
+  return wrap;
 }
 
 function renderInboundDetail(dateStr) {
@@ -4883,6 +5187,8 @@ function renderInboundDetail(dateStr) {
   const byDate = computeInboundByDate();
   const rows = byDate[dateStr] || [];
   titleEl.textContent = dateStr;
+  const prodRec = computeProdRecordByDate()[dateStr];
+  if (prodRec) listEl.appendChild(buildProdRecordDetail(prodRec));
   if (rows.length === 0) {
     emptyEl.textContent = '해당 날짜에 입고 내역이 없습니다.';
     emptyEl.classList.remove('hidden');
@@ -4951,7 +5257,7 @@ function renderInbound() {
 
 /* ===================== 초기화 ===================== */
 document.getElementById('overlay').addEventListener('click', () => {
-  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal','migrateModal'].forEach(id => hideModal(id));
+  ['profileModal','priceModal','csModal','invoiceUploadLogModal','invoiceFailListModal','prodUpdateModal','prodManualInputModal','prodRemoveConfirmModal','prodFixModal','prodRemapModal','inboundColMapModal','inboundUploadLogModal','inboundManualModal','migrateModal','dataManageModal'].forEach(id => hideModal(id));
 });
 
 /* ===================== 접근 제한(비밀번호 잠금) =====================
