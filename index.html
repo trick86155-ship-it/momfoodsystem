@@ -194,6 +194,24 @@
     width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit;
   }
   .modal textarea { resize:vertical; }
+  /* 일지 작성창 위쪽: 휴무일 지정(왼쪽) + 행사 등록(오른쪽) */
+  .journalTopRow { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
+  .journalTopRow .journalCheckLabel { flex:0 0 auto; margin-top:8px; }
+  .journalEventForm { flex:1 1 380px; min-width:0; border:1px solid #f3c6da; background:#fff7fb; border-radius:6px; padding:8px 10px; }
+  .journalEventFormTitle { font-size:12px; font-weight:bold; color:#a0245c; }
+  .journalEventFields { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:#555; }
+  .journalEventFields input[type=text] { flex:1 1 120px; min-width:0; width:auto; }
+  .journalEventFields input[type=date] { padding:5px 6px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit; }
+  .journalEventFields button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap; }
+  .journalEventPeriodLabel { font-weight:bold; }
+  .journalEventRow { border-color:#f3c6da; background:#fff7fb; }
+  .journalEventRow.editing { border-color:#d6578f; background:#ffeaf3; }
+  .journalEventPeriod { display:block; font-size:11px; color:#888; }
+  /* 달력 칸의 행사 표시 / 오른쪽 상세의 행사 표시 */
+  .dayEventLine { flex:0 0 auto; margin-top:3px; padding:1px 5px; border-radius:3px; background:#fde2ef; color:#a0245c; font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .calDayCell.otherMonth .dayEventLine { background:#f1e6ea; color:#b58a9d; }
+  .eventDetailRow { background:#fff7fb; border:1px solid #f3c6da; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
+  .idrEventTag { display:inline-block; margin-right:6px; padding:1px 6px; border-radius:8px; background:#fde2ef; color:#a0245c; font-size:10px; font-weight:bold; vertical-align:middle; }
   .modal label.journalCheckLabel { font-size:13px; color:#222; font-weight:bold; cursor:pointer; }
   .modal label.journalCheckLabel input { width:auto; vertical-align:middle; margin-right:6px; }
   .dayBadge.prodBadge { background:#fff3cd; color:#8a5a1f; }
@@ -936,9 +954,31 @@
 </div>
 
 <!-- 맘푸드일지: 날짜별 일지 작성 모달 (달력에서 날짜를 더블클릭하면 열림) -->
-<div id="journalModal" class="modal hidden">
+<div id="journalModal" class="modal hidden" style="width:660px;max-width:calc(100vw - 24px);">
   <h2 id="journalModalTitle">일지</h2>
-  <label class="journalCheckLabel"><input type="checkbox" id="journalHoliday"> 휴무일로 지정</label>
+  <div class="journalTopRow">
+    <label class="journalCheckLabel"><input type="checkbox" id="journalHoliday"> 휴무일로 지정</label>
+    <!-- 행사 등록: 업체명 / 행사기간(달력에서 선택) / 행사상품명 -->
+    <div class="journalEventForm">
+      <div class="journalEventFormTitle" id="journalEventFormTitle">행사 등록</div>
+      <div class="journalEventFields">
+        <input type="text" id="journalEventVendor" placeholder="업체명">
+        <input type="text" id="journalEventProduct" placeholder="행사상품명">
+      </div>
+      <div class="journalEventFields">
+        <span class="journalEventPeriodLabel">행사기간</span>
+        <input type="date" id="journalEventStart" title="행사 시작일">
+        <span>~</span>
+        <input type="date" id="journalEventEnd" title="행사 종료일">
+        <button type="button" id="journalEventSave" class="btnPrimary">행사 추가</button>
+        <button type="button" id="journalEventCancel" class="btnGhost hidden">취소</button>
+      </div>
+    </div>
+  </div>
+  <div id="journalEventArea" class="hidden">
+    <div class="sectionTitle">이 날짜의 행사</div>
+    <div id="journalEventList"></div>
+  </div>
   <div class="sectionTitle">작성된 내용</div>
   <div id="journalItemList"></div>
   <div id="journalItemEmpty" class="smallNote" style="margin-top:6px;">아직 작성된 내용이 없습니다.</div>
@@ -993,6 +1033,7 @@ let appState = {
   prodDaily: { sig: '', summary: null, changedAt: 0, recorded: false }, // 생산량 정리내역의 현재 요약(맘푸드일지 자동 기록용)
   prodDailyRecords: [], // 맘푸드일지에 자동 기록된 날짜별 생산 요약
   journal: {}, // 맘푸드일지: { 'YYYY-MM-DD': { holiday, items: [{ id, text, createdAt, updatedAt }] } }
+  events: [], // 맘푸드일지 행사: [{ id, vendor, product, startDate, endDate, createdAt }] (기간에 걸친 모든 날짜 칸에 표시)
 };
 
 let prodFixOrigName = null; // 인식현황 탭 "상품수정" 모달에서 현재 수정 중인 원본 상품명
@@ -1062,6 +1103,7 @@ function normalizeState(appState) {
   if (!Array.isArray(appState.prodDailyRecords)) appState.prodDailyRecords = [];
   if (!appState.journal || typeof appState.journal !== 'object' || Array.isArray(appState.journal)) appState.journal = {};
   normalizeJournal(appState.journal);
+  if (!Array.isArray(appState.events)) appState.events = [];
   return appState;
 }
 // 예전 형식으로 저장된 일지를 지금 형식(items 목록)으로 바꾼다.
@@ -1106,7 +1148,7 @@ function saveState() {
    파일을 직접 더블클릭해서 연 경우(file://)에는 예전처럼 이 컴퓨터의 localStorage에만 저장한다.
 
    데이터는 "섹션" 단위로 주고받는다: prod(생산량계산기), inbound(맘푸드일지의 세금계산서 입고 내역), proddaily(생산 자동 기록),
-   journal(맘푸드일지의 날짜별 일지), profile:<id>(거래처 프로필 1개).
+   journal(맘푸드일지의 날짜별 일지), events(맘푸드일지의 행사 기간), profile:<id>(거래처 프로필 1개).
    섹션마다 버전 번호가 있어서, 내가 수정하는 사이 다른 사람이 같은 섹션을 먼저 저장했으면
    서버가 저장을 거절(409)하고 최신 내용을 돌려준다 -> 서로의 수정을 모르고 덮어쓰는 일을 막는다. */
 const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
@@ -1118,6 +1160,7 @@ const PROD_STATE_KEYS = ['prodRows', 'prodUploadLog', 'prodOverrides', 'prodRemo
 const INBOUND_STATE_KEYS = ['inboundRows', 'inboundUploadLog', 'inboundColMap'];
 const PRODDAILY_STATE_KEYS = ['prodDaily', 'prodDailyRecords'];
 const JOURNAL_STATE_KEYS = ['journal'];
+const EVENTS_STATE_KEYS = ['events'];
 const PROFILE_SECTION_PREFIX = 'profile:';
 const PUSH_DELAY_MS = 800;
 const POLL_INTERVAL_MS = 5000;       // 다른 사람의 변경사항을 확인하는 주기
@@ -1146,6 +1189,7 @@ function buildSections(state) {
     inbound: JSON.stringify(pick(INBOUND_STATE_KEYS)),
     proddaily: JSON.stringify(pick(PRODDAILY_STATE_KEYS)),
     journal: JSON.stringify(pick(JOURNAL_STATE_KEYS)),
+    events: JSON.stringify(pick(EVENTS_STATE_KEYS)),
   };
   state.profiles.forEach(p => { out[PROFILE_SECTION_PREFIX + p.id] = JSON.stringify(p); });
   return out;
@@ -1160,6 +1204,8 @@ function setLocalSection(key, obj) {
     PRODDAILY_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
   } else if (key === 'journal') {
     JOURNAL_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
+  } else if (key === 'events') {
+    EVENTS_STATE_KEYS.forEach(k => { if (k in obj) appState[k] = obj[k]; });
   } else if (key.startsWith(PROFILE_SECTION_PREFIX)) {
     const id = key.slice(PROFILE_SECTION_PREFIX.length);
     if (obj.id !== id) return;
@@ -1256,7 +1302,7 @@ function refreshAfterRemote(changedKeys, conflictKeys) {
     else renderProfileSelect();
   }
   if (changedKeys.includes('prod') && document.getElementById('appProduction').classList.contains('active')) renderProduction();
-  if (['inbound', 'proddaily', 'journal'].some(k => changedKeys.includes(k)) && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  if (['inbound', 'proddaily', 'journal', 'events'].some(k => changedKeys.includes(k)) && document.getElementById('appInbound').classList.contains('active')) renderInbound();
   // proddaily는 사람이 입력하는 내용이 아니라 각 화면이 자동으로 계산해 올리는 값이라, 겹쳐도 알릴 필요가 없다
   if (conflictKeys.some(k => k !== 'proddaily')) {
     showSyncToast('다른 사용자가 같은 내용을 먼저 수정해서, 방금 변경한 내용이 반영되지 않았습니다. 화면을 최신 내용으로 바꿨으니 확인 후 다시 입력해 주세요.');
@@ -1364,8 +1410,32 @@ function mergeJournalChanges(serverJournal) {
   });
   return merged;
 }
+// 행사 저장이 다른 사람의 저장과 겹쳤을 때도 일지처럼 한 건 단위로 합친다:
+// 서버 최신 목록에서 내가 지운 건은 빼고, 내가 고친 건은 내 내용으로 바꾸고, 내가 추가한 건은 덧붙인다.
+function mergeEventsChanges(serverEvents) {
+  const base = sync.synced.events ? (JSON.parse(sync.synced.events).events || []) : [];
+  const baseMap = new Map(base.map(e => [e.id, e]));
+  const myMap = new Map(appState.events.map(e => [e.id, e]));
+  const merged = serverEvents
+    .filter(e => !(baseMap.has(e.id) && !myMap.has(e.id)))
+    .map(e => {
+      const my = myMap.get(e.id), old = baseMap.get(e.id);
+      return my && old && JSON.stringify(my) !== JSON.stringify(old) ? my : e;
+    });
+  appState.events.forEach(e => { if (!baseMap.has(e.id) && !merged.some(x => x.id === e.id)) merged.push(e); });
+  return merged;
+}
 // attempted: 내가 보내려던 내용(JSON 문자열)
 function handlePushConflict(key, body, attempted) {
+  if (key === 'events' && body && !body.deleted) {
+    const serverEvents = (body.data && Array.isArray(body.data.events)) ? body.data.events : [];
+    appState.events = mergeEventsChanges(serverEvents);
+    sync.versions[key] = body.v;
+    sync.synced[key] = JSON.stringify({ events: serverEvents });
+    if (buildSections(appState)[key] !== sync.synced[key]) sync.dirty = true; // 합친 결과를 다시 보낸다
+    refreshAfterRemote([key], []);
+    return;
+  }
   if (key === 'journal' && body && !body.deleted) {
     const serverJournal = normalizeJournal((body.data && body.data.journal) || {});
     appState.journal = mergeJournalChanges(serverJournal);
@@ -5173,6 +5243,15 @@ function renderInboundCalendar() {
     }
     cell.appendChild(numSpan);
 
+    // 행사: 기간에 걸친 모든 날짜 칸에 한 건에 한 줄씩 표시
+    eventsOnDate(dateStr).forEach(ev => {
+      const line = document.createElement('div');
+      line.className = 'dayEventLine';
+      line.textContent = `행사 ${eventLabel(ev)}`;
+      line.title = `${eventLabel(ev)} (${eventPeriodLabel(ev)})`;
+      cell.appendChild(line);
+    });
+
     if (journalEntry) {
       if (journalEntry.holiday) {
         const badge = document.createElement('div');
@@ -5386,6 +5465,8 @@ function renderInboundDetail(dateStr) {
   const rows = byDate[dateStr] || [];
   titleEl.textContent = journalDateLabel(dateStr);
   listEl.appendChild(buildJournalDetail(dateStr));
+  const dayEvents = eventsOnDate(dateStr);
+  if (dayEvents.length > 0) listEl.appendChild(buildEventsDetail(dayEvents));
   const prodRec = computeProdRecordByDate()[dateStr];
   if (prodRec) listEl.appendChild(buildProdRecordDetail(prodRec));
   if (rows.length === 0) {
@@ -5589,14 +5670,155 @@ function renderJournalModal() {
 function openJournalModal(dateStr) {
   journalEditingDate = dateStr;
   resetJournalInput();
+  resetJournalEventForm();
   document.getElementById('journalModalTitle').textContent = `${journalDateLabel(dateStr)} 일지`;
   renderJournalModal();
+  renderJournalEvents();
   showModal('journalModal');
 }
 function closeJournalModal() {
   journalEditingDate = null;
   journalEditingItemId = null;
+  journalEditingEventId = null;
   hideModal('journalModal');
+}
+
+/* ----- 행사 기간: 업체명 / 행사기간 / 행사상품명 -----
+   appState.events = [{ id, vendor, product, startDate, endDate, createdAt }]
+   일지 작성창의 "행사 등록"에서 추가하면 시작일~종료일의 모든 날짜 칸에 표시된다. 추가·수정·삭제는 누르는 즉시 저장된다. */
+let journalEditingEventId = null; // 작성창에서 수정 중인 행사의 id (null이면 새 행사를 등록하는 상태)
+
+function eventsOnDate(dateStr) {
+  return appState.events
+    .filter(ev => ev.startDate <= dateStr && dateStr <= ev.endDate)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.createdAt || 0) - (b.createdAt || 0));
+}
+function eventLabel(ev) {
+  return [ev.vendor, ev.product].filter(Boolean).join(' · ');
+}
+function eventPeriodLabel(ev) {
+  return ev.startDate === ev.endDate ? ev.startDate : `${ev.startDate} ~ ${ev.endDate}`;
+}
+function resetJournalEventForm() {
+  journalEditingEventId = null;
+  document.getElementById('journalEventVendor').value = '';
+  document.getElementById('journalEventProduct').value = '';
+  // 기간의 기본값은 지금 열어 둔 날짜 하루
+  document.getElementById('journalEventStart').value = journalEditingDate || '';
+  document.getElementById('journalEventEnd').value = journalEditingDate || '';
+}
+// 행사 입력칸에 아직 등록하지 않은 내용이 있는지
+function journalEventFormHasUnsaved() {
+  const vendor = document.getElementById('journalEventVendor').value.trim();
+  const product = document.getElementById('journalEventProduct').value.trim();
+  const ev = appState.events.find(e => e.id === journalEditingEventId);
+  if (!ev) return vendor !== '' || product !== '';
+  return vendor !== ev.vendor || product !== ev.product
+    || document.getElementById('journalEventStart').value !== ev.startDate
+    || document.getElementById('journalEventEnd').value !== ev.endDate;
+}
+// 작성창의 "이 날짜의 행사" 목록과 등록칸의 상태(등록/수정)를 다시 그린다
+function renderJournalEvents() {
+  const dateStr = journalEditingDate;
+  if (!dateStr) return;
+  if (journalEditingEventId && !appState.events.some(e => e.id === journalEditingEventId)) journalEditingEventId = null;
+  const list = eventsOnDate(dateStr);
+  const listEl = document.getElementById('journalEventList');
+  listEl.innerHTML = '';
+  list.forEach(ev => {
+    const row = document.createElement('div');
+    row.className = 'journalItemRow journalEventRow' + (ev.id === journalEditingEventId ? ' editing' : '');
+    const textEl = document.createElement('div');
+    textEl.className = 'journalItemText journalEventText';
+    textEl.textContent = eventLabel(ev);
+    const periodEl = document.createElement('span');
+    periodEl.className = 'journalEventPeriod';
+    periodEl.textContent = eventPeriodLabel(ev);
+    textEl.appendChild(periodEl);
+    const btns = document.createElement('div');
+    btns.className = 'journalItemBtns';
+    const editBtn = document.createElement('button');
+    editBtn.type = 'button';
+    editBtn.textContent = '수정';
+    editBtn.addEventListener('click', () => {
+      if (journalEventFormHasUnsaved() && !confirm('행사 입력칸에 등록하지 않은 내용이 있습니다. 버리고 이 행사를 수정할까요?')) return;
+      journalEditingEventId = ev.id;
+      document.getElementById('journalEventVendor').value = ev.vendor;
+      document.getElementById('journalEventProduct').value = ev.product;
+      document.getElementById('journalEventStart').value = ev.startDate;
+      document.getElementById('journalEventEnd').value = ev.endDate;
+      renderJournalEvents();
+      document.getElementById('journalEventVendor').focus();
+    });
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'del';
+    delBtn.textContent = '삭제';
+    delBtn.addEventListener('click', () => {
+      if (!confirm(`[${eventLabel(ev)}] 행사(${eventPeriodLabel(ev)})를 삭제합니다. 기간 전체에서 지워집니다. 계속할까요?`)) return;
+      if (journalEditingEventId === ev.id) resetJournalEventForm();
+      appState.events = appState.events.filter(e => e.id !== ev.id);
+      saveState();
+      renderInbound();
+      renderJournalEvents();
+    });
+    btns.appendChild(editBtn);
+    btns.appendChild(delBtn);
+    row.appendChild(textEl);
+    row.appendChild(btns);
+    listEl.appendChild(row);
+  });
+  document.getElementById('journalEventArea').classList.toggle('hidden', list.length === 0);
+
+  const editing = !!journalEditingEventId;
+  document.getElementById('journalEventFormTitle').textContent = editing ? '행사 수정' : '행사 등록';
+  document.getElementById('journalEventSave').textContent = editing ? '수정 저장' : '행사 추가';
+  document.getElementById('journalEventCancel').classList.toggle('hidden', !editing);
+}
+document.getElementById('journalEventSave').addEventListener('click', () => {
+  if (!journalEditingDate) return;
+  const vendorInput = document.getElementById('journalEventVendor');
+  const vendor = vendorInput.value.trim();
+  const product = document.getElementById('journalEventProduct').value.trim();
+  let startDate = document.getElementById('journalEventStart').value;
+  let endDate = document.getElementById('journalEventEnd').value;
+  if (!vendor && !product) { alert('업체명 또는 행사상품명을 입력하세요.'); vendorInput.focus(); return; }
+  if (!startDate || !endDate) { alert('행사기간의 시작일과 종료일을 선택하세요.'); return; }
+  if (startDate > endDate) [startDate, endDate] = [endDate, startDate]; // 거꾸로 고른 경우 바로잡는다
+  const editingEvent = appState.events.find(e => e.id === journalEditingEventId);
+  if (editingEvent) {
+    Object.assign(editingEvent, { vendor, product, startDate, endDate });
+  } else {
+    appState.events.push({ id: 'e' + uid(), vendor, product, startDate, endDate, createdAt: Date.now() });
+  }
+  saveState();
+  resetJournalEventForm();
+  renderInbound();
+  renderJournalEvents();
+});
+document.getElementById('journalEventCancel').addEventListener('click', () => {
+  resetJournalEventForm();
+  renderJournalEvents();
+});
+// 선택한 날짜에 걸친 행사들을 오른쪽 상세 패널용 블록으로 만든다
+function buildEventsDetail(events) {
+  const wrap = document.createElement('div');
+  wrap.className = 'inboundDetailRow eventDetailRow';
+  events.forEach(ev => {
+    const nameEl = document.createElement('div');
+    nameEl.className = 'idrVendor';
+    const tag = document.createElement('span');
+    tag.className = 'idrEventTag';
+    tag.textContent = '행사';
+    nameEl.appendChild(tag);
+    nameEl.appendChild(document.createTextNode(eventLabel(ev)));
+    const periodEl = document.createElement('div');
+    periodEl.className = 'idrMeta';
+    periodEl.textContent = `행사기간 ${eventPeriodLabel(ev)}`;
+    wrap.appendChild(nameEl);
+    wrap.appendChild(periodEl);
+  });
+  return wrap;
 }
 // 입력칸에 아직 저장하지 않은 내용이 있는지 (실수로 닫거나 다른 내용을 눌러서 날리는 것을 막기 위해 확인)
 function journalInputHasUnsaved() {
@@ -5638,7 +5860,7 @@ document.getElementById('journalEditCancel').addEventListener('click', () => {
   renderJournalModal();
 });
 document.getElementById('journalCancel').addEventListener('click', () => {
-  if (journalInputHasUnsaved() && !confirm('입력칸에 저장하지 않은 내용이 있습니다. 그대로 닫을까요?')) return;
+  if ((journalInputHasUnsaved() || journalEventFormHasUnsaved()) && !confirm('입력칸에 저장하지 않은 내용이 있습니다. 그대로 닫을까요?')) return;
   closeJournalModal();
 });
 document.getElementById('journalDelete').addEventListener('click', () => {
