@@ -202,7 +202,6 @@
   .prodRecordRow details { margin-top:4px; }
   .prodRecordRow summary { cursor:pointer; color:#8a5a1f; font-size:11px; }
   .prodRecordRow .delBtn { margin-left:4px; }
-  .idrAutoTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fff3cd; color:#8a5a1f; font-size:10px; font-weight:bold; vertical-align:middle; }
   /* 세금계산서 매출/매입 표시 */
   .taxLineGroup { flex:0 0 auto; }
   .taxMore { margin-top:2px; font-size:10px; color:#888; }
@@ -582,7 +581,7 @@
 
         <div class="sectionTitle">생산 횟수 요약</div>
         <div id="prodRunSummary"></div>
-        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 맘푸드일지의 전날 날짜 칸에 자동으로 기록됩니다. 마지막 기록 이후 내역이 바뀌지 않았으면 다시 기록하지 않습니다.</div>
+        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 맘푸드일지의 전날 날짜 칸에 "발주량"으로 기록되고, 여기 발주내역과 업로드 기록은 자동으로 비워집니다.</div>
       </div>
     </div>
   </div>
@@ -1301,6 +1300,7 @@ function applyRemote(data) {
 
   normalizeState(appState);
   fixCurrentProfile();
+  rememberProdRows(); // 서버에서 받은 발주내역은 모두 "이미 있던 행"이다
   const after = buildSections(appState);
   changedKeys.forEach(key => { if (after[key] !== undefined) sync.synced[key] = after[key]; });
   refreshAfterRemote(changedKeys, conflictKeys);
@@ -1364,7 +1364,8 @@ function mergeJournalChanges(serverJournal) {
   });
   return merged;
 }
-function handlePushConflict(key, body) {
+// attempted: 내가 보내려던 내용(JSON 문자열)
+function handlePushConflict(key, body, attempted) {
   if (key === 'journal' && body && !body.deleted) {
     const serverJournal = normalizeJournal((body.data && body.data.journal) || {});
     appState.journal = mergeJournalChanges(serverJournal);
@@ -1384,9 +1385,12 @@ function handlePushConflict(key, body) {
   }
   normalizeState(appState);
   fixCurrentProfile();
+  rememberProdRows();
   const after = buildSections(appState);
   if (after[key] !== undefined) sync.synced[key] = after[key];
-  refreshAfterRemote([key], [key]);
+  // 서버에 먼저 저장된 내용이 내가 보내려던 것과 똑같으면(예: 6시 마감 때 여러 화면이 동시에 같은 기록·초기화를 한 경우)
+  // 잃어버린 변경이 없으므로 알리지 않는다
+  refreshAfterRemote([key], after[key] === attempted ? [] : [key]);
 }
 // 바뀐 섹션만 골라 서버로 보낸다
 async function pushDirty() {
@@ -1417,7 +1421,7 @@ async function pushDirty() {
         sync.versions[key] = (await res.json()).v;
         sync.synced[key] = cur[key];
       } else if (res.status === 409) {
-        handlePushConflict(key, await res.json());
+        handlePushConflict(key, await res.json(), cur[key]);
       } else {
         throw new Error('save ' + res.status);
       }
@@ -4188,7 +4192,8 @@ function renderProdSummary() {
    그래도 결과가 달라지지 않도록, "현재 정리내역 요약 + 마지막으로 바뀐 시각"을 항상 데이터에 함께 저장해 둔다(prodDaily).
    발주내역을 바꾸려면 어차피 화면을 열어야 하고, 그때 먼저 '바뀌기 전 요약'으로 기록부터 남기기 때문에
    6시가 한참 지나서 처음 접속하더라도 6시 시점의 내용이 정확히 기록된다.
-   정리내역이 마지막 기록 이후 바뀌지 않았다면 다음 날 다시 기록하지 않는다. */
+   기록과 동시에 그날의 발주내역과 업로드 기록은 비운다(다음 날은 빈 상태에서 시작).
+   달력에는 "발주량"이라는 이름으로 표시한다. */
 const PROD_DAY_CUTOFF_HOUR_KST = 6;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -4225,6 +4230,12 @@ function prodDailyNeedsWork(now) {
   if (d.summary && !d.recorded && now >= nextProdCutoffAfter(d.changedAt)) return true;
   return buildProdDailySummary().sig !== d.sig;
 }
+// 직전 확인 때 발주내역에 있던 행들. 마감 뒤 기록하면서 발주내역을 비울 때, 그 사이 새로 추가된 행
+// (= 다음 날 분)을 가려내 남겨 두는 데 쓴다. null이면 지금 있는 행 전부를 전날 분으로 본다.
+let prodKnownRows = null;
+function rememberProdRows() {
+  prodKnownRows = new Set(appState.prodRows);
+}
 // 바뀐 것이 있으면 true (호출한 쪽에서 저장해야 함)
 function prodDailyCheck(now) {
   const d = appState.prodDaily;
@@ -4239,6 +4250,12 @@ function prodDailyCheck(now) {
       appState.prodDailyRecords.push(record);
       d.recorded = true;
       changed = true;
+      // 기록한 날의 발주내역은 비워서 다음 날은 빈 상태에서 시작한다([초기화] 버튼과 같은 범위: 발주내역 + 업로드 기록).
+      // 다만 마감이 지난 뒤 방금 추가된 행(직전 확인 때 없던 행)은 다음 날 분이므로 남긴다.
+      const known = prodKnownRows;
+      appState.prodRows = appState.prodRows.filter(r => known && !known.has(r));
+      const keepLogIds = new Set(appState.prodRows.map(r => r.logId).filter(Boolean));
+      appState.prodUploadLog = appState.prodUploadLog.filter(entry => keepLogIds.has(entry.id));
     }
   }
   // 2) 현재 정리내역이 저장된 요약과 달라졌으면 갱신 (다음 마감 때 기록 대상이 됨)
@@ -4250,6 +4267,7 @@ function prodDailyCheck(now) {
     d.recorded = false;
     changed = true;
   }
+  rememberProdRows();
   return changed;
 }
 // 주기적으로 확인. 여러 사람이 화면을 열어 두고 있으면 6시에 동시에 기록하려 들기 때문에,
@@ -4268,7 +4286,11 @@ function prodDailyTick() {
   prodDailyRunAt = 0;
   const recordCount = appState.prodDailyRecords.length;
   saveState(); // saveState 안에서 prodDailyCheck가 실행된다
-  if (appState.prodDailyRecords.length !== recordCount && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  if (appState.prodDailyRecords.length !== recordCount) {
+    // 기록이 생기면서 발주내역도 비워졌으므로 보고 있는 화면을 다시 그린다
+    if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
+    if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
+  }
 }
 setInterval(prodDailyTick, 10000);
 
@@ -5117,7 +5139,7 @@ function renderInboundCalendar() {
     '이번 달 ' + (monthGroups.length > 0
       ? monthGroups.map(g => `${g.label} ${fmtNum(g.count)}건 ${fmtNum(g.amount)}원`).join(' · ')
       : '매출·매입 내역 없음')
-    + (monthProdDays > 0 ? ` · 생산 기록 ${monthProdDays}일` : '')
+    + (monthProdDays > 0 ? ` · 발주량 ${monthProdDays}일` : '')
     + (monthHolidays > 0 ? ` · 휴무 ${monthHolidays}일` : '');
 
   const weekCount = totalCells / 7;
@@ -5208,7 +5230,7 @@ function renderInboundCalendar() {
     if (prodRec) {
       const badge = document.createElement('div');
       badge.className = 'dayBadge prodBadge';
-      badge.textContent = '생산';
+      badge.textContent = '발주량';
       cell.appendChild(badge);
       const preview = document.createElement('div');
       preview.className = 'dayItemPreview';
@@ -5316,11 +5338,7 @@ function buildProdRecordDetail(rec) {
     wrap.appendChild(div);
     return div;
   };
-  const head = addLine('idrVendor', '생산 기록');
-  const tag = document.createElement('span');
-  tag.className = 'idrAutoTag';
-  tag.textContent = '자동기록';
-  head.appendChild(tag);
+  addLine('idrVendor', '발주량');
   (rec.totals || []).forEach(t => addLine('idrItem', `${prodCategoryLabel(t.name)} ${fmtNum(t.servings)}인분`));
   addLine('idrMeta', `생산횟수: 소바 ${(Number(rec.sobaRuns) || 0).toFixed(1)}회 · 칼국수 ${(Number(rec.kalguksuRuns) || 0).toFixed(1)}회`);
 
@@ -5344,7 +5362,7 @@ function buildProdRecordDetail(rec) {
   delBtn.className = 'delBtn';
   delBtn.textContent = '기록 삭제';
   delBtn.addEventListener('click', () => {
-    if (!confirm(`${rec.date}의 생산 기록을 삭제합니다. 계속할까요?`)) return;
+    if (!confirm(`${rec.date}의 발주량 기록을 삭제합니다. 계속할까요?`)) return;
     appState.prodDailyRecords = appState.prodDailyRecords.filter(r => r.id !== rec.id);
     saveState();
     renderInbound();
