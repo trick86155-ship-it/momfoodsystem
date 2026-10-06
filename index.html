@@ -3681,11 +3681,20 @@ function parseProductServing(name) {
   s = s.replace(/\([^)]*\)\s*$/, '').trim(); // "소바 10인분(소바5+비소5인)" 같은 괄호 설명은 제거하고 앞의 숫자만 사용
   // "10인" 또는 "10인분" 형식을 인식하되, 문자열 끝에 있지 않아도(예: "칼국수 10인분 (면200g+소스35g)*10") 인식하도록 끝 고정을 두지 않음
   const m = s.match(/^(.+?)\s*(\d+)\s*인분?/);
-  if (!m) return null;
-  const base = m[1].trim();
-  const perSet = Number(m[2]);
-  if (!base || !perSet) return null;
-  return { base, perSet };
+  if (m) {
+    const base = m[1].trim();
+    const perSet = Number(m[2]);
+    if (!base || !perSet) return null;
+    return { base, perSet };
+  }
+  // "N인" 표기 없이 "공주 얼큰이 칼국수 150g"처럼 1인분 낱개의 중량(g)만 적힌 발주서:
+  // 수량 열이 곧 인분 수이므로 1개 = 1인분으로 본다. 면 상품 이름일 때만 인정하고,
+  // 그렇지 않은 이름은 지금처럼 인식 실패로 남겨 [발주서업데이트]에서 직접 지정하게 한다.
+  const w = s.match(/^(.+?)\s*\d+\s*g(?![a-z])/i);
+  if (w && PRODUCTION_CATEGORIES.some(cat => w[1].replace(/\s+/g, '').includes(cat.key))) {
+    return { base: w[1].trim(), perSet: 1 };
+  }
+  return null;
 }
 // 자동 인식(정규식)에 실패한 상품명은 사용자가 [발주서업데이트]로 직접 지정한 값(prodOverrides)이 있는지 먼저 확인
 function resolveProductServing(name) {
@@ -3694,10 +3703,18 @@ function resolveProductServing(name) {
   return parseProductServing(name);
 }
 function categorizeProduct(base) {
+  const name = String(base).replace(/\s+/g, ''); // 띄어쓰기는 무시하고 비교한다
+  if (name.includes('소스')) return null; // 소스만 따로 파는 상품은 면 생산량에 넣지 않는다("기타"로 집계)
+  // "공주 얼큰이 칼국수"처럼 사이에 다른 말이 끼어 있어도 공주칼국수로 본다
+  if (name.includes('공주') && name.includes('칼국수')) return '공주칼국수';
   for (const cat of PRODUCTION_CATEGORIES) {
-    if (base.includes(cat.key)) return cat.key;
+    if (name.includes(cat.key)) return cat.key;
   }
   return null;
+}
+// 상품군을 화면에 보여줄 때의 이름
+function prodCategoryLabel(key) {
+  return key === '공주칼국수' ? '공주 칼국수' : key;
 }
 
 function computeProductionSummary(rows) {
@@ -4078,7 +4095,8 @@ function renderProdRawTable() {
   empty.classList.add('hidden');
   rows.forEach((r, i) => {
     const tr = document.createElement('tr');
-    if (r.failed) {
+    // 저장된 r.failed는 올릴 당시의 판정이라, 인식 규칙이 바뀐 뒤에는 맞지 않을 수 있어 지금 기준으로 다시 본다
+    if (!resolveProductServing(r.productName)) {
       tr.classList.add('failRow');
     } else if (appState.prodOverrides[r.productName]) {
       // 발주서업데이트로 수동 매핑을 등록해 인식이 성공한 셀은 초록색으로 구분 표시
@@ -4130,7 +4148,7 @@ function renderProdSummary() {
     const servings = categoryServings[cat] || 0;
     if (servings === 0) return; // 해당 카테고리 주문이 아예 없으면 표시하지 않음
     const tr = document.createElement('tr');
-    const tdBase = document.createElement('td'); tdBase.textContent = cat;
+    const tdBase = document.createElement('td'); tdBase.textContent = prodCategoryLabel(cat);
     const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(servings) + '인분';
     tr.appendChild(tdBase); tr.appendChild(tdServ);
     baseTbody.appendChild(tr);
@@ -4764,7 +4782,7 @@ document.getElementById('prodManualSave').addEventListener('click', () => {
 
 /* ===================== 발주서업데이트 (인식 실패 항목 수정) ===================== */
 document.getElementById('btnProdUpdate').addEventListener('click', () => {
-  const failedNames = [...new Set(appState.prodRows.filter(r => r.failed).map(r => r.productName))];
+  const failedNames = [...new Set(appState.prodRows.filter(r => !resolveProductServing(r.productName)).map(r => r.productName))];
   const list = document.getElementById('prodUpdateList');
   const emptyMsg = document.getElementById('prodUpdateEmpty');
   list.innerHTML = '';
@@ -5194,7 +5212,7 @@ function renderInboundCalendar() {
       cell.appendChild(badge);
       const preview = document.createElement('div');
       preview.className = 'dayItemPreview';
-      preview.textContent = (prodRec.totals || []).map(t => `${t.name} ${fmtNum(t.servings)}`).join(', ');
+      preview.textContent = (prodRec.totals || []).map(t => `${prodCategoryLabel(t.name)} ${fmtNum(t.servings)}`).join(', ');
       cell.appendChild(preview);
     }
 
@@ -5303,7 +5321,7 @@ function buildProdRecordDetail(rec) {
   tag.className = 'idrAutoTag';
   tag.textContent = '자동기록';
   head.appendChild(tag);
-  (rec.totals || []).forEach(t => addLine('idrItem', `${t.name} ${fmtNum(t.servings)}인분`));
+  (rec.totals || []).forEach(t => addLine('idrItem', `${prodCategoryLabel(t.name)} ${fmtNum(t.servings)}인분`));
   addLine('idrMeta', `생산횟수: 소바 ${(Number(rec.sobaRuns) || 0).toFixed(1)}회 · 칼국수 ${(Number(rec.kalguksuRuns) || 0).toFixed(1)}회`);
 
   if ((rec.lines || []).length > 0) {
