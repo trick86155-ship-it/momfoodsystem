@@ -197,8 +197,8 @@
   /* 일지 작성창 위쪽: 휴무일 지정(왼쪽) + 행사 등록(오른쪽) */
   .journalTopRow { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
   .journalTopRow .journalCheckLabel { flex:0 0 auto; margin-top:8px; }
-  .journalEventForm { flex:1 1 380px; min-width:0; border:1px solid #f3c6da; background:#fff7fb; border-radius:6px; padding:8px 10px; }
-  .journalEventFormTitle { font-size:12px; font-weight:bold; color:#a0245c; }
+  .journalEventForm { flex:1 1 380px; min-width:0; border:1px solid #d5e0f2; background:#f5f8fd; border-radius:6px; padding:8px 10px; }
+  .journalEventFormTitle { font-size:12px; font-weight:bold; color:#2b3a55; }
   .journalEventFields { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:#555; }
   .journalEventFields input[type=text] { flex:1 1 120px; min-width:0; width:auto; }
   .journalEventFields input[type=date] { padding:5px 6px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit; }
@@ -213,7 +213,7 @@
   .calDayCell > .dayNum { flex:0 0 auto; box-sizing:border-box; height:20px; line-height:20px; }
   .calDayCell > .dayNum.monthMark { line-height:18px; }
   .dayEventSpace { flex:0 0 auto; }
-  .dayEventMore { flex:0 0 auto; font-size:10px; font-weight:bold; color:#a0245c; }
+  .dayEventMore { flex:0 0 auto; font-size:10px; font-weight:bold; color:#3f4a5c; }
   .calEventBar {
     align-self:start; z-index:1; min-width:0; height:16px; line-height:16px; padding:0 6px;
     font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -222,7 +222,7 @@
   .calEventBar.startsHere { margin-left:3px; border-top-left-radius:4px; border-bottom-left-radius:4px; }
   .calEventBar.endsHere { margin-right:3px; border-top-right-radius:4px; border-bottom-right-radius:4px; }
   .eventDetailRow { background:#fafbfd; border:1px solid #dfe3ea; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
-  .idrEventTag { display:inline-block; margin-right:6px; padding:1px 6px; border-radius:8px; background:#fde2ef; color:#a0245c; font-size:10px; font-weight:bold; vertical-align:middle; }
+  .idrEventTag { display:inline-block; margin-right:6px; padding:1px 6px; border-radius:8px; background:#e8eaee; color:#3f4a5c; font-size:10px; font-weight:bold; vertical-align:middle; }
   .modal label.journalCheckLabel { font-size:13px; color:#222; font-weight:bold; cursor:pointer; }
   .modal label.journalCheckLabel input { width:auto; vertical-align:middle; margin-right:6px; }
   .dayBadge.prodBadge { background:#fff3cd; color:#8a5a1f; }
@@ -5382,9 +5382,15 @@ const EVENT_LANE_HEIGHT = 18; // 막대 한 줄이 차지하는 높이(막대 16
 const EVENT_BAR_GAP = 2;      // 날짜 숫자와 첫 막대 사이 간격
 const EVENT_BAR_TOP = 4 + 20 + EVENT_BAR_GAP; // 칸 위쪽 여백(4) + 날짜 숫자 줄(20) + 간격
 const EVENT_MAX_LANES = 4;    // 한 칸에 쌓아 보여줄 최대 줄 수(넘치면 "행사 +N건"으로 표시)
+// 빨강·분홍·주황 계열은 휴무일 표시(붉은색)와 헷갈리므로 쓰지 않는다
 const EVENT_COLORS = [
-  { bg: '#fde2ef', fg: '#a0245c' }, { bg: '#dce8fb', fg: '#1c4f9c' }, { bg: '#dff3e2', fg: '#1e7a35' }, { bg: '#fdebd3', fg: '#9a5a12' },
-  { bg: '#ece4f9', fg: '#5b3f9a' }, { bg: '#d9f2f0', fg: '#17706a' }, { bg: '#fbf3c4', fg: '#7a6410' }, { bg: '#e8eaee', fg: '#3f4a5c' },
+  { bg: '#dce8fb', fg: '#1c4f9c' }, // 파랑
+  { bg: '#dff3e2', fg: '#1e7a35' }, // 초록
+  { bg: '#ece4f9', fg: '#5b3f9a' }, // 보라
+  { bg: '#fbf3c4', fg: '#7a6410' }, // 노랑
+  { bg: '#d9f2f0', fg: '#17706a' }, // 청록
+  { bg: '#e8eaee', fg: '#3f4a5c' }, // 회색
+  { bg: '#eaf5cf', fg: '#55700f' }, // 연두
 ];
 // 색을 나누는 기준: 업체명(없으면 상품명). 띄어쓰기 차이는 같은 업체로 본다.
 function eventColorKey(ev) {
