@@ -204,13 +204,24 @@
   .journalEventFields input[type=date] { padding:5px 6px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit; }
   .journalEventFields button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap; }
   .journalEventPeriodLabel { font-weight:bold; }
-  .journalEventRow { border-color:#f3c6da; background:#fff7fb; }
-  .journalEventRow.editing { border-color:#d6578f; background:#ffeaf3; }
+  .journalEventRow { border-color:#dfe3ea; background:#fafbfd; }
+  .journalEventRow.editing { background:#eef2fb; }
   .journalEventPeriod { display:block; font-size:11px; color:#888; }
   /* 달력 칸의 행사 표시 / 오른쪽 상세의 행사 표시 */
-  .dayEventLine { flex:0 0 auto; margin-top:3px; padding:1px 5px; border-radius:3px; background:#fde2ef; color:#a0245c; font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .calDayCell.otherMonth .dayEventLine { background:#f1e6ea; color:#b58a9d; }
-  .eventDetailRow { background:#fff7fb; border:1px solid #f3c6da; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
+  /* 달력의 행사 막대: 날짜 칸들 위에 겹쳐서, 시작 칸부터 끝 칸까지 하나로 이어 그린다(위치·색은 renderInboundCalendar가 지정).
+     막대가 날짜 숫자 바로 아래에 오도록 날짜 숫자 줄의 높이를 20px로 고정하고, 칸 안에는 막대가 지나갈 자리(dayEventSpace)를 비워 둔다. */
+  .calDayCell > .dayNum { flex:0 0 auto; box-sizing:border-box; height:20px; line-height:20px; }
+  .calDayCell > .dayNum.monthMark { line-height:18px; }
+  .dayEventSpace { flex:0 0 auto; }
+  .dayEventMore { flex:0 0 auto; font-size:10px; font-weight:bold; color:#a0245c; }
+  .calEventBar {
+    align-self:start; z-index:1; min-width:0; height:16px; line-height:16px; padding:0 6px;
+    font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    pointer-events:none; /* 막대 위를 눌러도 아래의 날짜 칸이 눌리게 한다 */
+  }
+  .calEventBar.startsHere { margin-left:3px; border-top-left-radius:4px; border-bottom-left-radius:4px; }
+  .calEventBar.endsHere { margin-right:3px; border-top-right-radius:4px; border-bottom-right-radius:4px; }
+  .eventDetailRow { background:#fafbfd; border:1px solid #dfe3ea; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
   .idrEventTag { display:inline-block; margin-right:6px; padding:1px 6px; border-radius:8px; background:#fde2ef; color:#a0245c; font-size:10px; font-weight:bold; vertical-align:middle; }
   .modal label.journalCheckLabel { font-size:13px; color:#222; font-weight:bold; cursor:pointer; }
   .modal label.journalCheckLabel input { width:auto; vertical-align:middle; margin-right:6px; }
@@ -5220,11 +5231,19 @@ function renderInboundCalendar() {
   body.innerHTML = '';
   const cellDate = new Date(y, m, 1 - startOffset);
 
+  // 행사 막대를 어디에 몇 줄로 놓을지 먼저 정한다(칸마다 막대가 지나갈 자리를 비워 둬야 하므로)
+  const gridDates = [];
+  for (let i = 0, d = new Date(y, m, 1 - startOffset); i < totalCells; i++, d.setDate(d.getDate() + 1)) gridDates.push(formatDateYMD(d));
+  const eventLayout = layoutCalendarEvents(gridDates);
+
   for (let i = 0; i < totalCells; i++) {
     const dateStr = formatDateYMD(cellDate);
     const isCurMonth = cellDate.getMonth() === m;
     const cell = document.createElement('div');
     cell.className = 'calDayCell';
+    // 칸의 자리를 직접 지정한다(1행은 요일 머리글). 여러 칸에 걸치는 행사 막대를 같은 자리에 겹쳐 놓기 위해서다.
+    cell.style.gridRow = String(Math.floor(i / 7) + 2);
+    cell.style.gridColumn = String(i % 7 + 1);
     cell.title = '더블클릭: 일지 작성';
     if (!isCurMonth) cell.classList.add('otherMonth');
     if (dateStr === todayStr) cell.classList.add('today');
@@ -5243,14 +5262,19 @@ function renderInboundCalendar() {
     }
     cell.appendChild(numSpan);
 
-    // 행사: 기간에 걸친 모든 날짜 칸에 한 건에 한 줄씩 표시
-    eventsOnDate(dateStr).forEach(ev => {
-      const line = document.createElement('div');
-      line.className = 'dayEventLine';
-      line.textContent = `행사 ${eventLabel(ev)}`;
-      line.title = `${eventLabel(ev)} (${eventPeriodLabel(ev)})`;
-      cell.appendChild(line);
-    });
+    // 행사 막대가 지나가는 만큼 자리를 비워 둔다(막대 자체는 칸들 위에 따로 겹쳐 그린다)
+    if (eventLayout.lanes[i] > 0) {
+      const space = document.createElement('div');
+      space.className = 'dayEventSpace';
+      space.style.height = `${EVENT_BAR_GAP + eventLayout.lanes[i] * EVENT_LANE_HEIGHT}px`;
+      cell.appendChild(space);
+    }
+    if (eventLayout.hidden[i] > 0) {
+      const more = document.createElement('div');
+      more.className = 'dayEventMore';
+      more.textContent = `행사 +${eventLayout.hidden[i]}건`;
+      cell.appendChild(more);
+    }
 
     if (journalEntry) {
       if (journalEntry.holiday) {
@@ -5333,7 +5357,88 @@ function renderInboundCalendar() {
     body.appendChild(cell);
     cellDate.setDate(cellDate.getDate() + 1);
   }
+
+  // 행사 막대: 한 주 안에서는 시작 칸부터 끝 칸까지 하나로 이어 그린다(칸 사이의 선도 덮는다)
+  const eventColors = eventColorMap();
+  eventLayout.segments.forEach(seg => {
+    const bar = document.createElement('div');
+    bar.className = 'calEventBar' + (seg.startsHere ? ' startsHere' : '') + (seg.endsHere ? ' endsHere' : '');
+    bar.style.gridRow = String(seg.week + 2);
+    bar.style.gridColumn = `${seg.c1 + 1} / ${seg.c2 + 2}`;
+    bar.style.marginTop = `${EVENT_BAR_TOP + seg.lane * EVENT_LANE_HEIGHT}px`;
+    const color = eventColors.get(eventColorKey(seg.ev));
+    bar.style.background = color.bg;
+    bar.style.color = color.fg;
+    bar.textContent = `행사 ${eventLabel(seg.ev)}`;
+    body.appendChild(bar);
+  });
   fitCalendarCells();
+}
+
+/* ----- 달력의 행사 막대 배치 -----
+   행사는 날짜 칸마다 따로 그리지 않고, 주(週)마다 "시작 칸 ~ 끝 칸"을 가로지르는 막대 하나로 그린다.
+   같은 날에 여러 행사가 겹치면 줄을 달리해서 위아래로 쌓고, 업체마다 다른 색을 쓴다. */
+const EVENT_LANE_HEIGHT = 18; // 막대 한 줄이 차지하는 높이(막대 16 + 간격 2)
+const EVENT_BAR_GAP = 2;      // 날짜 숫자와 첫 막대 사이 간격
+const EVENT_BAR_TOP = 4 + 20 + EVENT_BAR_GAP; // 칸 위쪽 여백(4) + 날짜 숫자 줄(20) + 간격
+const EVENT_MAX_LANES = 4;    // 한 칸에 쌓아 보여줄 최대 줄 수(넘치면 "행사 +N건"으로 표시)
+const EVENT_COLORS = [
+  { bg: '#fde2ef', fg: '#a0245c' }, { bg: '#dce8fb', fg: '#1c4f9c' }, { bg: '#dff3e2', fg: '#1e7a35' }, { bg: '#fdebd3', fg: '#9a5a12' },
+  { bg: '#ece4f9', fg: '#5b3f9a' }, { bg: '#d9f2f0', fg: '#17706a' }, { bg: '#fbf3c4', fg: '#7a6410' }, { bg: '#e8eaee', fg: '#3f4a5c' },
+];
+// 색을 나누는 기준: 업체명(없으면 상품명). 띄어쓰기 차이는 같은 업체로 본다.
+function eventColorKey(ev) {
+  return String(ev.vendor || ev.product || '').replace(/\s+/g, '');
+}
+// 업체별 색을 정한다. 이름으로 정해지는 색을 기본으로 하되(그래서 행사가 늘거나 줄어도 웬만하면 색이 바뀌지 않는다),
+// 다른 업체가 이미 쓰고 있는 색이면 다음 색으로 넘겨 서로 다른 색이 되게 한다.
+function eventColorMap() {
+  const map = new Map();
+  const used = new Set();
+  [...appState.events]
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.id).localeCompare(String(b.id)))
+    .forEach(ev => {
+      const key = eventColorKey(ev);
+      if (map.has(key)) return;
+      let idx = [...key].reduce((h, ch) => (h * 31 + ch.codePointAt(0)) % 9973, 7) % EVENT_COLORS.length;
+      for (let n = 0; n < EVENT_COLORS.length && used.has(idx); n++) idx = (idx + 1) % EVENT_COLORS.length;
+      used.add(idx);
+      if (used.size === EVENT_COLORS.length) used.clear(); // 업체가 색 가짓수보다 많으면 처음부터 다시 쓴다
+      map.set(key, EVENT_COLORS[idx]);
+    });
+  return map;
+}
+// gridDates: 달력에 보이는 칸들의 날짜(왼쪽 위부터 차례로). 돌려주는 값:
+//   segments - 그릴 막대들 { ev, week(몇째 주), c1~c2(시작·끝 열), lane(몇째 줄), startsHere/endsHere(이 주에서 시작/끝나는지) }
+//   lanes[i] - i번째 칸에서 막대가 차지하는 줄 수,  hidden[i] - 줄이 모자라 그리지 못한 행사 수
+function layoutCalendarEvents(gridDates) {
+  const lanes = gridDates.map(() => 0);
+  const hidden = gridDates.map(() => 0);
+  const segments = [];
+  const first = gridDates[0], last = gridDates[gridDates.length - 1];
+  const events = appState.events
+    .filter(ev => ev.endDate >= first && ev.startDate <= last)
+    .sort((a, b) => a.startDate.localeCompare(b.startDate) || (a.createdAt || 0) - (b.createdAt || 0));
+  for (let week = 0; week < gridDates.length / 7; week++) {
+    const weekStart = gridDates[week * 7], weekEnd = gridDates[week * 7 + 6];
+    const laneEnd = []; // 줄마다, 마지막으로 놓은 막대가 끝나는 열
+    events.forEach(ev => {
+      if (ev.endDate < weekStart || ev.startDate > weekEnd) return;
+      const c1 = ev.startDate <= weekStart ? 0 : gridDates.indexOf(ev.startDate) - week * 7;
+      const c2 = ev.endDate >= weekEnd ? 6 : gridDates.indexOf(ev.endDate) - week * 7;
+      if (c1 < 0 || c2 < c1) return; // 날짜 형식이 잘못된 행사는 그리지 않는다
+      let lane = laneEnd.findIndex(end => end < c1); // 앞의 막대와 겹치지 않는 가장 위쪽 줄
+      if (lane === -1) lane = laneEnd.length;
+      laneEnd[lane] = c2;
+      const shown = lane < EVENT_MAX_LANES;
+      for (let c = c1; c <= c2; c++) {
+        if (shown) lanes[week * 7 + c] = Math.max(lanes[week * 7 + c], lane + 1);
+        else hidden[week * 7 + c]++;
+      }
+      if (shown) segments.push({ ev, week, c1, c2, lane, startsHere: ev.startDate >= weekStart, endsHere: ev.endDate <= weekEnd });
+    });
+  }
+  return { lanes, hidden, segments };
 }
 
 // 달력 칸에 내용이 다 들어가도록 맞춘다. 칸 높이는 창 크기와 그 달의 주 수에 따라 달라지므로,
@@ -5725,9 +5830,11 @@ function renderJournalEvents() {
   const list = eventsOnDate(dateStr);
   const listEl = document.getElementById('journalEventList');
   listEl.innerHTML = '';
+  const colors = eventColorMap();
   list.forEach(ev => {
     const row = document.createElement('div');
     row.className = 'journalItemRow journalEventRow' + (ev.id === journalEditingEventId ? ' editing' : '');
+    row.style.borderLeft = `5px solid ${colors.get(eventColorKey(ev)).fg}`; // 달력의 막대와 같은 색 표시
     const textEl = document.createElement('div');
     textEl.className = 'journalItemText journalEventText';
     textEl.textContent = eventLabel(ev);
@@ -5804,12 +5911,17 @@ document.getElementById('journalEventCancel').addEventListener('click', () => {
 function buildEventsDetail(events) {
   const wrap = document.createElement('div');
   wrap.className = 'inboundDetailRow eventDetailRow';
+  const colors = eventColorMap();
   events.forEach(ev => {
     const nameEl = document.createElement('div');
     nameEl.className = 'idrVendor';
     const tag = document.createElement('span');
     tag.className = 'idrEventTag';
     tag.textContent = '행사';
+    // 달력의 막대와 같은 색으로 표시
+    const color = colors.get(eventColorKey(ev));
+    tag.style.background = color.bg;
+    tag.style.color = color.fg;
     nameEl.appendChild(tag);
     nameEl.appendChild(document.createTextNode(eventLabel(ev)));
     const periodEl = document.createElement('div');
