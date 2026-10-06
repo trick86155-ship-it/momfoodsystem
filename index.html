@@ -5,310 +5,189 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>맘푸드 업무시스템</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
+  /* ===================== 디자인 기본값 =====================
+     색은 여기 한 곳에서 정한다: 중립 회색 바탕 + 강조색(파랑) 하나.
+     빨강은 "휴무일"과 "오류·삭제"에만 쓴다. */
+  :root {
+    --bg: #f5f6f8;            /* 화면 바탕 */
+    --surface: #ffffff;       /* 카드·표·창 */
+    --surface-2: #f8f9fb;     /* 표 머리글, 옅은 채움 */
+    --line: #e7e9ee;          /* 기본 선 */
+    --line-strong: #d5d9e0;   /* 입력칸·버튼 테두리 */
+    --text: #1b2130;
+    --text-2: #586172;
+    --text-3: #8c94a3;
+    --ink: #1b2130;           /* 주요 버튼 */
+    --ink-hover: #2e3649;
+    --accent: #2f5fde;
+    --accent-soft: #eef3fe;
+    --danger: #c13a2e;
+    --danger-soft: #fdf1ef;
+    --danger-line: #f0cbc6;
+    --success: #1b7f4d;
+    --success-soft: #e9f6ee;
+    --warn: #8f6200;
+    --warn-soft: #fff4d4;
+    --radius: 8px;
+    --radius-sm: 6px;
+    --shadow-pop: 0 14px 36px rgba(20, 28, 45, 0.16), 0 2px 6px rgba(20, 28, 45, 0.06);
+    --font: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Segoe UI", "Malgun Gothic", "맑은 고딕", sans-serif;
+  }
   * { box-sizing: border-box; }
   html, body {
-    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+    font-family: var(--font);
+    font-size: 13px;
     margin: 0; padding: 0;
-    background: #f2f3f5;
-    color: #222;
+    background: var(--bg);
+    color: var(--text);
     overflow-x: hidden; /* 페이지 전체가 아니라 표 영역 안에서만 좌우 스크롤되도록 */
     height: 100%;
+    -webkit-font-smoothing: antialiased;
   }
   body {
     display: flex;
     flex-direction: column;
   }
-  #toolbar {
-    display: flex; align-items: center; gap: 8px;
-    background: #2b3a55; padding: 10px 14px;
-    flex-wrap: wrap;
+  button, input, select, textarea { font-family: inherit; }
+  button { color: inherit; }
+  button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  ::-webkit-scrollbar { width: 12px; height: 12px; }
+  ::-webkit-scrollbar-thumb { background: #d0d4dc; border-radius: 8px; border: 3px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-thumb:hover { background: #b4bac6; border: 3px solid transparent; background-clip: content-box; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  /* ===================== 공통 버튼 ===================== */
+  .btnPrimary, .btnGhost, .btnDanger, .btnDangerSolid, .btnRestore, .btnPermDelete,
+  #toolbar button, #prodToolbar button, #inboundToolbar button, #vatBtns button {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 34px; padding: 0 14px; border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 500; white-space: nowrap; cursor: pointer;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--text);
+    transition: background-color .12s, border-color .12s, color .12s;
   }
-  #toolbar button {
-    background: #3f5273; color: #fff; border: none;
-    padding: 8px 14px; border-radius: 4px; cursor: pointer;
-    font-size: 13px;
+  .btnGhost:hover, .btnRestore:hover,
+  #toolbar button:hover, #prodToolbar button:hover, #inboundToolbar button:hover, #vatBtns button:hover {
+    background: var(--surface-2); border-color: #c3c8d2;
   }
-  #toolbar button:hover { background: #4c6389; }
+  .btnPrimary, #vatBtns #btnVatCopy { background: var(--ink); border-color: var(--ink); color: #fff; font-weight: 600; }
+  .btnPrimary:hover, #vatBtns #btnVatCopy:hover { background: var(--ink-hover); border-color: var(--ink-hover); }
+  /* 삭제처럼 되돌리기 어려운 동작: 평소에는 글자만 붉게, 올리면 옅은 붉은 바탕 */
+  .btnDanger, .btnPermDelete, #toolbar button.tbDanger, #prodToolbar button.tbDanger { color: var(--danger); }
+  .btnDanger:hover, .btnPermDelete:hover, #toolbar button.tbDanger:hover, #prodToolbar button.tbDanger:hover {
+    background: var(--danger-soft); border-color: var(--danger-line); color: var(--danger);
+  }
+  .btnDangerSolid { background: var(--danger); border-color: var(--danger); color: #fff; font-weight: 600; }
+  .btnDangerSolid:hover { background: #a93126; border-color: #a93126; }
+  /* 표 안이나 목록 옆에 붙는 작은 버튼 */
+  .miniBtn, .delBtn, #priceTbody button, .overrideDelBtn, .journalEditBtn, .idrDelBtn, .journalItemBtns button {
+    display: inline-flex; align-items: center; justify-content: center;
+    height: 24px; padding: 0 9px; border-radius: 5px; font-size: 11px; font-weight: 500; white-space: nowrap; cursor: pointer;
+    border: 1px solid var(--line-strong); background: var(--surface); color: var(--text-2);
+    transition: background-color .12s, border-color .12s, color .12s;
+  }
+  .miniBtn:hover, .journalEditBtn:hover, .journalItemBtns button:hover { background: var(--surface-2); color: var(--text); border-color: #c3c8d2; }
+  .delBtn, #priceTbody button, .overrideDelBtn, .journalItemBtns button.del { color: var(--danger); }
+  .delBtn:hover, #priceTbody button:hover, .overrideDelBtn:hover, .idrDelBtn:hover, .journalItemBtns button.del:hover {
+    background: var(--danger-soft); border-color: var(--danger-line); color: var(--danger);
+  }
+
+  /* ===================== 맨 위 메뉴 ===================== */
   #globalBar {
-    display:flex; align-items:center; gap:10px;
-    background:#1c2536; padding:6px 14px; flex:0 0 auto; position:relative;
+    display: flex; align-items: stretch; gap: 2px;
+    height: 52px; padding: 0 20px; flex: 0 0 auto; position: relative;
+    background: var(--surface); border-bottom: 1px solid var(--line);
+    overflow-x: auto; overflow-y: hidden;
   }
+  #brandName { display: flex; align-items: center; margin-right: 18px; font-size: 15px; font-weight: 800; letter-spacing: -0.02em; color: var(--text); white-space: nowrap; }
   .appTabBtn {
-    background:transparent; color:#cfd6e4; border:none; border-radius:4px;
-    padding:6px 14px; font-size:13px; font-weight:bold; cursor:pointer;
+    display: flex; align-items: center; padding: 0 12px;
+    background: transparent; border: none; border-bottom: 2px solid transparent; border-top: 2px solid transparent;
+    font-size: 14px; font-weight: 600; color: var(--text-3); white-space: nowrap; cursor: pointer;
+    transition: color .12s, border-color .12s;
   }
-  .appTabBtn:hover { background:#2b3a55; }
-  .appTabBtn.active { background:#3f5273; color:#fff; }
-  .appScreen { display:none; flex-direction:column; flex:1; min-height:0; }
-  .appScreen.active { display:flex; }
-  #prodToolbar {
-    display:flex; align-items:center; gap:8px;
-    background:#2b3a55; padding:10px 14px; flex:0 0 auto;
-  }
-  #prodToolbar button {
-    background:#3f5273; color:#fff; border:none; padding:8px 14px; border-radius:4px;
-    cursor:pointer; font-size:13px;
-  }
-  #prodToolbar button:hover { background:#4c6389; }
-  #prodTabs { display:flex; align-items:center; background:#dfe3e8; border-bottom:2px solid #b9c0cb; flex:0 0 auto; }
-  .prodTabBtn { padding:8px 20px; border:none; background:transparent; cursor:pointer; font-size:13px; font-weight:bold; color:#555; }
-  .prodTabBtn.active { background:#fff; color:#2b3a55; border-bottom:2px solid #2b3a55; margin-bottom:-2px; }
-  #prodFileFilterArea { margin-left:14px; font-size:12px; font-weight:bold; color:#333; display:flex; align-items:center; gap:6px; }
-  #prodFileFilterArea select { padding:4px 8px; border-radius:4px; border:1px solid #b9c0cb; background:#fff; font-size:12px; font-weight:bold; color:#333; max-width:220px; }
-  .prodSheet { display:none; flex-direction:column; flex:1; min-height:0; }
-  .prodSheet.active { display:flex; }
-  #prodContent { display:flex; flex:1; min-height:0; gap:14px; padding:14px; }
-  .statusBadge { display:inline-block; padding:2px 10px; border-radius:10px; font-size:11px; font-weight:bold; }
-  .statusBadge.ok { background:#e3f3e6; color:#2a7a3b; }
-  .statusBadge.fail { background:#ffdede; color:#a11; }
-  .statusBadge.fixed { background:#dce8fb; color:#1c4f9c; }
-  .overrideDelBtn { background:#e05353; color:#fff; border:none; border-radius:4px; padding:3px 8px; cursor:pointer; font-size:11px; }
-  #prodRawArea, #prodSummaryArea {
-    flex:1; min-height:0; display:flex; flex-direction:column;
-    background:#fff; border-radius:6px; padding:12px; overflow:auto;
-  }
-  #prodRunSummary {
-    display:flex; flex-direction:column; gap:8px; margin-top:6px;
-  }
-  .prodRunLine {
-    display:flex; justify-content:space-between; align-items:center;
-    background:#fff3cd; border-radius:6px; padding:10px 14px;
-    font-weight:bold; color:#2b3a55; font-size:14px;
-  }
-  #prodUploadLog {
-    flex:0 0 auto; margin-top:10px; padding-top:8px; border-top:1px dashed #ddd;
-  }
-  #prodUploadLog .sectionTitle { margin-top:0; padding-top:0; border-top:none; font-size:12px; }
-  #invoiceUploadLogArea {
-    flex:0 0 auto; margin-top:10px; padding-top:8px; border-top:1px dashed #ddd;
-  }
-  #invoiceUploadLogArea .sectionTitle { margin-top:0; padding-top:0; border-top:none; font-size:12px; }
-  .uploadLogHeader { display:flex; align-items:center; justify-content:space-between; cursor:pointer; user-select:none; }
-  .uploadLogToggleBtn { font-size:11px; font-weight:normal; color:#888; }
-  .uploadLogListInner { max-height:64px; overflow-y:auto; }
-  .uploadLogListInner.hidden { display:none; }
-  .uploadLogLine { font-size:11px; color:#555; padding:3px 0; }
-  .uploadLogLine .failCount { color:#d0341c; font-weight:bold; }
-  #prodRawTbody tr.failRow td { background:#ffdede; color:#a11; }
-  #prodRawTbody tr.updatedRow td, #prodLineTbody tr.updatedRow td, #prodStatusTbody tr.updatedRow td { background:#dbf5df; color:#1e7a35; }
-  .prodUpdateRow { padding:10px 0; border-bottom:1px solid #eee; }
-  .prodUpdateRow .origName { font-size:12px; color:#a11; font-weight:bold; margin-bottom:6px; word-break:break-all; }
-  .prodUpdateRow .fieldsRow { display:flex; gap:10px; }
-  .prodUpdateRow .fieldsRow > div { flex:1; }
-  .prodUpdateRow label { display:block; font-size:11px; color:#777; margin-bottom:3px; }
-  .prodUpdateRow input { width:100%; padding:6px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; }
-  .uploadLogLine .okCount { color:#2a7a3b; font-weight:bold; }
-  #profileArea { color: #fff; font-size: 13px; display:flex; align-items:center; gap:6px;}
-  #profileArea select { padding: 6px; border-radius: 4px; border: none; min-width: 160px;}
-  #tabs { display:flex; background:#dfe3e8; border-bottom: 2px solid #b9c0cb; }
-  .tabBtn { padding: 8px 20px; border:none; background:transparent; cursor:pointer; font-size:13px; font-weight:bold; color:#555;}
-  .tabBtn.active { background:#fff; color:#2b3a55; border-bottom:2px solid #2b3a55; margin-bottom:-2px; }
-  #invoiceUploadSummary { align-self:center; margin-left:14px; padding:4px 10px; font-size:12px; font-weight:bold; color:#333; cursor:pointer; user-select:none; border-radius:4px; }
-  #invoiceUploadSummary:hover { background:#eef1f5; }
-  #invoiceUploadSummary .ouSuccess { display:inline-block; padding:1px 8px; border-radius:10px; background:#e3f5e6; color:#1e7a35; font-weight:bold; }
-  #invoiceUploadSummary .ouFail { display:inline-block; padding:1px 8px; border-radius:10px; background:#fbe2e0; color:#c0271a; font-weight:bold; }
+  .appTabBtn:hover { color: var(--text); }
+  .appTabBtn.active { color: var(--text); border-bottom-color: var(--ink); }
+  .appScreen { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .appScreen.active { display: flex; }
+  /* 저장 상태: 글자는 차분하게, 앞의 점 색으로 상태를 알린다 (data-state는 setSyncStatus가 넣는다) */
+  #syncStatus { display: flex; align-items: center; gap: 6px; margin-left: auto; padding-left: 16px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+  #syncStatus::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
+  #syncStatus:empty::before { display: none; }
+  #syncStatus[data-state="ok"]::before { background: #2aa466; }
+  #syncStatus[data-state="saving"]::before { background: #e0a100; }
+  #syncStatus[data-state="error"]::before { background: var(--danger); }
+  #syncStatus[data-state="error"] { color: var(--danger); }
 
-  /* ===== 맘푸드일지 ===== */
-  #inboundToolbar {
-    display:flex; align-items:center; gap:8px;
-    background:#2b3a55; padding:10px 14px; flex:0 0 auto;
+  /* ===================== 화면별 도구줄 / 탭 ===================== */
+  #toolbar, #prodToolbar, #inboundToolbar {
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 0 0 auto;
+    padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--line);
   }
-  #inboundToolbar button {
-    background:#3f5273; color:#fff; border:none; padding:8px 14px; border-radius:4px;
-    cursor:pointer; font-size:13px;
+  .stepNo {
+    display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; margin-right: 7px;
+    border-radius: 50%; background: #eceef2; color: var(--text-2); font-size: 10px; font-weight: 700;
   }
-  #inboundToolbar button:hover { background:#4c6389; }
-  #inboundBody { display:flex; flex:1; min-height:0; }
-  #inboundCalendarArea { flex:1; min-height:0; display:flex; flex-direction:column; padding:14px; }
-  #inboundCalHeader { display:flex; align-items:center; gap:10px; flex:0 0 auto; margin-bottom:10px; }
-  #inboundCalHeader .btnGhost { padding:6px 12px; border-radius:4px; border:1px solid #ccc; background:#fff; cursor:pointer; }
-  #inboundCalTitleWrap { position:relative; display:inline-block; }
-  #inboundCalTitle { font-weight:bold; font-size:16px; color:#2b3a55; min-width:110px; text-align:center; cursor:pointer; border-radius:4px; padding:2px 6px; }
-  #inboundCalTitleWrap:hover #inboundCalTitle { background:#eef1f5; }
-  #inboundMonthPicker {
-    position:absolute; top:0; left:0; width:100%; height:100%;
-    opacity:0; cursor:pointer; border:none; padding:0; margin:0;
+  #btnEditProfile { margin-left: auto; }
+  #profileArea { display: flex; align-items: center; gap: 8px; margin-left: 4px; font-size: 12px; color: var(--text-3); white-space: nowrap; }
+  #profileArea select, #prodFileFilterArea select {
+    height: 34px; padding: 0 10px; min-width: 160px; max-width: 240px;
+    border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--surface);
+    font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer;
   }
-  /* 표 대신 CSS Grid로 구성 - 주(week) 행들이 남는 세로 공간을 균등하게 채우도록(1fr) 해서
-     달이 몇 주로 구성되든 달력이 영역 하단까지 꽉 차고 밑에 빈 여백이 남지 않게 한다 */
-  #inboundCalGridWrap { flex:1; min-height:0; overflow:hidden; }
-  #inboundCalGrid {
-    display:grid; grid-template-columns:repeat(7, 1fr);
-    height:100%; gap:1px; background:#d3d7dc; border:1px solid #d3d7dc;
+  #tabs, #prodTabs {
+    display: flex; align-items: center; gap: 4px; flex: 0 0 auto;
+    padding: 8px 20px; background: var(--surface); border-bottom: 1px solid var(--line);
   }
-  #inboundCalBody { display:contents; }
-  .calHeadCell { background:#3f5273; color:#fff; padding:6px; text-align:center; font-weight:bold; font-size:13px; }
-  .calHeadCell.sun { color:#ffb3b3; }
-  .calHeadCell.sat { color:#b3d4ff; }
-  .calDayCell { background:#fff; padding:4px; cursor:pointer; overflow:hidden; min-width:0; min-height:0; display:flex; flex-direction:column; }
-  .calDayCell:hover { background:#f5f7fb; }
-  .calDayCell.otherMonth { background:#eef0f3; }
-  .calDayCell.selectedDay { background:#e6ecf9; outline:2px solid #3f5273; outline-offset:-2px; }
-  .calDayCell.today .dayNum { color:#fff; background:#3f5273; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; }
-  .dayNum { font-size:12px; font-weight:bold; color:#333; }
-  .dayNum.monthMark { color:#8a5a1f; background:#fdf1de; border-radius:4px; padding:1px 5px; display:inline-block; align-self:flex-start; white-space:nowrap; }
-  .calDayCell.otherMonth .dayNum { color:#b7bcc4; }
-  .calDayCell.otherMonth .dayNum.monthMark { color:#a98a5e; background:#f1ece2; }
-  /* 오늘이 1일이면 "10월 1"처럼 글자가 길어서 오늘 표시용 동그라미(20px) 안에 들어가지 못하고 세로로 깨진다.
-     이 경우에는 동그라미 대신 글자 길이에 맞는 알약 모양으로 표시한다(다른 달 화면에서 보일 때도 동일). */
-  .calDayCell.today .dayNum.monthMark { width:auto; height:auto; padding:1px 7px; border-radius:10px; color:#fff; background:#3f5273; }
-  .calDayCell.otherMonth .dayBadge { background:#e6e8eb; color:#8a8f96; }
-  .calDayCell.otherMonth .dayItemPreview { color:#aeb2b8; }
-  .dayBadge { display:inline-block; margin-top:4px; padding:1px 6px; border-radius:8px; background:#e3f5e6; color:#1e7a35; font-size:10px; font-weight:bold; }
-  .dayItemPreview { margin-top:3px; font-size:10px; color:#666; line-height:1.4; word-break:break-all; }
-  /* 일지 메모 미리보기: 보여줄 줄 수(-webkit-line-clamp)는 fitCalendarMemos()가 칸 높이에 맞춰 정하고, 넘치면 끝이 …로 표시된다 */
-  .dayMemoPreview {
-    margin-top:3px; font-size:10px; color:#333; line-height:1.4; word-break:break-all; white-space:pre-line;
-    flex:0 0 auto; overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1;
+  .tabBtn, .prodTabBtn {
+    height: 30px; padding: 0 12px; border: none; border-radius: var(--radius-sm); background: transparent;
+    font-size: 13px; font-weight: 500; color: var(--text-2); cursor: pointer; transition: background-color .12s, color .12s;
   }
-  .calDayCell.otherMonth .dayMemoPreview { color:#aeb2b8; }
-  #inboundDetailArea { width:320px; flex:0 0 auto; border-left:1px solid #ddd; padding:14px; overflow:auto; background:#fff; }
-  .inboundDetailRow { padding:8px 0; border-bottom:1px solid #eee; font-size:12px; }
-  .inboundDetailRow .idrVendor { font-weight:bold; color:#2b3a55; }
-  .inboundDetailRow .idrItem { margin-top:2px; }
-  .inboundDetailRow .idrMeta { margin-top:2px; color:#777; }
-  /* 날짜별 일지 */
-  .calDayCell.holidayDay { background:#fff1f1; }
-  .calDayCell.holidayDay:hover { background:#ffe6e6; }
-  .calDayCell.holidayDay .dayNum { color:#c0271a; }
-  .calDayCell.holidayDay.selectedDay { background:#fbe2e0; }
-  .calDayCell.otherMonth.holidayDay { background:#f3e9e9; }
-  .dayBadge { align-self:flex-start; } /* 칸 너비만큼 늘어나지 않고 글자 크기만큼만 */
-  .dayBadge.holidayBadge { background:#fbe2e0; color:#c0271a; }
-  .journalDetailRow { background:#f5f8fd; border:1px solid #d5e0f2; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
-  .journalEditBtn { float:right; background:#3f5273; color:#fff; border:none; border-radius:4px; padding:3px 10px; font-size:11px; cursor:pointer; }
-  .journalEditBtn:hover { background:#4c6389; }
-  .journalFieldText { white-space:pre-wrap; word-break:break-word; }
-  .journalDetailItem + .journalDetailItem { border-top:1px dashed #cfdaf0; margin-top:5px; padding-top:5px; }
-  /* 일지 작성창: 이미 작성된 내용 목록 */
-  #journalItemList { max-height:240px; overflow-y:auto; }
-  .journalItemRow { display:flex; gap:8px; align-items:flex-start; padding:8px 10px; margin-top:6px; border:1px solid #d5e0f2; background:#f5f8fd; border-radius:6px; font-size:13px; }
-  .journalItemRow.editing { border-color:#5b7fd6; background:#e9f0ff; }
-  .journalItemText { flex:1; min-width:0; white-space:pre-wrap; word-break:break-word; }
-  .journalItemBtns { display:flex; gap:4px; flex:0 0 auto; }
-  .journalItemBtns button { border:none; border-radius:4px; padding:3px 9px; font-size:11px; cursor:pointer; color:#fff; background:#3f5273; }
-  .journalItemBtns button.del { background:#e05353; }
-  .idrHolidayTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#fbe2e0; color:#c0271a; font-size:10px; font-weight:bold; vertical-align:middle; }
-  .modal textarea {
-    width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit;
-  }
-  .modal textarea { resize:vertical; }
-  /* 일지 작성창 위쪽: 휴무일 지정(왼쪽) + 행사 등록(오른쪽) */
-  .journalTopRow { display:flex; flex-wrap:wrap; gap:14px; align-items:flex-start; }
-  .journalTopRow .journalCheckLabel { flex:0 0 auto; margin-top:8px; }
-  .journalEventForm { flex:1 1 380px; min-width:0; border:1px solid #d5e0f2; background:#f5f8fd; border-radius:6px; padding:8px 10px; }
-  .journalEventFormTitle { font-size:12px; font-weight:bold; color:#2b3a55; }
-  .journalEventFields { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:6px; font-size:12px; color:#555; }
-  .journalEventFields input[type=text] { flex:1 1 120px; min-width:0; width:auto; }
-  .journalEventFields input[type=date] { padding:5px 6px; border:1px solid #ccd2da; border-radius:4px; font-size:13px; font-family:inherit; }
-  .journalEventFields button { padding:6px 12px; border:none; border-radius:4px; cursor:pointer; font-size:12px; white-space:nowrap; }
-  .journalEventPeriodLabel { font-weight:bold; }
-  .journalEventRow { border-color:#dfe3ea; background:#fafbfd; }
-  .journalEventRow.editing { background:#eef2fb; }
-  .journalEventPeriod { display:block; font-size:11px; color:#888; }
-  /* 달력 칸의 행사 표시 / 오른쪽 상세의 행사 표시 */
-  /* 달력의 행사 막대: 날짜 칸들 위에 겹쳐서, 시작 칸부터 끝 칸까지 하나로 이어 그린다(위치·색은 renderInboundCalendar가 지정).
-     막대가 날짜 숫자 바로 아래에 오도록 날짜 숫자 줄의 높이를 20px로 고정하고, 칸 안에는 막대가 지나갈 자리(dayEventSpace)를 비워 둔다. */
-  .calDayCell > .dayNum { flex:0 0 auto; box-sizing:border-box; height:20px; line-height:20px; }
-  .calDayCell > .dayNum.monthMark { line-height:18px; }
-  .dayEventSpace { flex:0 0 auto; }
-  .dayEventMore { flex:0 0 auto; font-size:10px; font-weight:bold; color:#3f4a5c; }
-  .calEventBar {
-    align-self:start; z-index:1; min-width:0; height:16px; line-height:16px; padding:0 6px;
-    font-size:10px; font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-    pointer-events:none; /* 막대 위를 눌러도 아래의 날짜 칸이 눌리게 한다 */
-  }
-  .calEventBar.startsHere { margin-left:3px; border-top-left-radius:4px; border-bottom-left-radius:4px; }
-  .calEventBar.endsHere { margin-right:3px; border-top-right-radius:4px; border-bottom-right-radius:4px; }
-  .eventDetailRow { background:#fafbfd; border:1px solid #dfe3ea; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
-  .idrEventTag { display:inline-block; margin-right:6px; padding:1px 6px; border-radius:8px; background:#e8eaee; color:#3f4a5c; font-size:10px; font-weight:bold; vertical-align:middle; }
-  .modal label.journalCheckLabel { font-size:13px; color:#222; font-weight:bold; cursor:pointer; }
-  .modal label.journalCheckLabel input { width:auto; vertical-align:middle; margin-right:6px; }
-  .dayBadge.prodBadge { background:#fff3cd; color:#8a5a1f; }
-  .calDayCell.otherMonth .dayBadge.prodBadge { background:#f1ece2; color:#a98a5e; }
-  .prodRecordRow { background:#fffaf0; border:1px solid #f0e2bd; border-radius:6px; padding:8px 10px; margin-bottom:6px; }
-  .prodRecordRow details { margin-top:4px; }
-  .prodRecordRow summary { cursor:pointer; color:#8a5a1f; font-size:11px; }
-  .prodRecordRow .delBtn { margin-left:4px; }
-  /* 세금계산서 매출/매입 표시 */
-  .taxLineGroup { flex:0 0 auto; }
-  .taxMore { margin-top:2px; font-size:10px; color:#888; }
-  .calDayCell.otherMonth .taxMore { color:#aeb2b8; }
-  .dayBadge.salesBadge { background:#dce8fb; color:#1c4f9c; }
-  .dayBadge.purchaseBadge { background:#f7ead9; color:#8a5a1f; }
-  .idrTaxTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; font-size:10px; font-weight:bold; vertical-align:middle; }
-  .idrTaxTag.sales { background:#dce8fb; color:#1c4f9c; }
-  .idrTaxTag.purchase { background:#f7ead9; color:#8a5a1f; }
-  .idrDelBtn { float:right; background:transparent; color:#a33; border:1px solid #e3b5b5; border-radius:4px; padding:1px 7px; font-size:10px; font-weight:normal; cursor:pointer; }
-  .idrDelBtn:hover { background:#e05353; color:#fff; border-color:#e05353; }
-  .idrManualTag { display:inline-block; margin-left:6px; padding:1px 6px; border-radius:8px; background:#efe6f7; color:#6b4c9a; font-size:10px; font-weight:bold; vertical-align:middle; }
+  .tabBtn:hover, .prodTabBtn:hover { background: #f1f3f6; color: var(--text); }
+  .tabBtn.active, .prodTabBtn.active { background: #eceef2; color: var(--text); font-weight: 700; }
+  #prodFileFilterArea { margin-left: 14px; font-size: 12px; color: var(--text-3); display: flex; align-items: center; gap: 8px; }
+  #prodFileFilterArea select { height: 30px; font-size: 12px; }
+  #invoiceUploadSummary { align-self: center; margin-left: 12px; padding: 4px 8px; font-size: 12px; color: var(--text-2); cursor: pointer; user-select: none; border-radius: var(--radius-sm); }
+  #invoiceUploadSummary:hover { background: #f1f3f6; }
+  #invoiceUploadSummary .ouSuccess, #invoiceUploadSummary .ouFail { display: inline-block; padding: 1px 7px; border-radius: 4px; font-weight: 600; }
+  #invoiceUploadSummary .ouSuccess { background: var(--success-soft); color: var(--success); }
+  #invoiceUploadSummary .ouFail { background: var(--danger-soft); color: var(--danger); cursor: pointer; }
+  #invoiceUploadSummary .ouFail:hover { text-decoration: underline; }
 
-  /* 세금계산서 직접입력 모달 안의 소형 날짜 선택용 달력 */
-  #manualCalHeader { display:flex; align-items:center; gap:8px; margin-top:10px; }
-  #manualCalTitle { flex:1; text-align:center; font-weight:bold; color:#2b3a55; font-size:14px; }
-  #manualCalGrid { display:grid; grid-template-columns:repeat(7, 1fr); gap:1px; background:#d3d7dc; border:1px solid #d3d7dc; margin-top:8px; }
-  .miniHeadCell { background:#3f5273; color:#fff; padding:4px; text-align:center; font-size:11px; font-weight:bold; }
-  .miniDayCell { background:#fff; padding:6px 2px; text-align:center; font-size:12px; color:#333; cursor:pointer; }
-  .miniDayCell:hover { background:#f5f7fb; }
-  .miniDayCell.otherMonth { color:#c3c7cd; background:#fafafa; }
-  .miniDayCell.today { font-weight:bold; color:#3f5273; }
-  .miniDayCell.selectedDay { background:#3f5273; color:#fff; border-radius:4px; }
-  #inboundCalSummary { color:#666; }
-
-  .sheet { display:none; padding: 12px; min-height:0; }
-  .sheet.active { display:flex; flex-direction:column; flex:1; min-height:0; }
-  .tableScroll { flex:1; min-height:0; overflow:auto; }
-  #summaryArea:not(.hidden) { flex:1; min-height:0; overflow-y:auto; }
-  table { border-collapse: collapse; background:#fff; font-size:12px; width: max-content; min-width: 100%; }
-  th, td { border: 1px solid #d3d7dc; padding: 5px 8px; text-align:center; white-space: nowrap; }
-  #colHeaderRow th { background:#e8eaee; color:#666; font-weight:normal; }
-  #fieldHeaderRow th { background:#3f5273; color:#fff; position: sticky; top:0; }
-  #fieldHeaderRow th { white-space:nowrap; }
-  /* 필터가 적용된 열은 헤더 두 줄(문자행/이름행) 전체를 눈에 띄게 강조 표시 */
-  #colHeaderRow th.filteredColHeader { background:#ffb703; color:#3f2c00; font-weight:bold; }
-  #fieldHeaderRow th.filteredColHeader { background:#ffd166; color:#2b3a55; }
-  .colFilterIcon { display:inline-block; margin-left:5px; cursor:pointer; font-size:10px; color:#aab4c8; user-select:none; }
-  .colFilterIcon:hover { color:#fff; }
+  /* ===================== 표 ===================== */
+  .sheet { display: none; padding: 16px 20px; min-height: 0; }
+  .sheet.active { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .tableScroll { flex: 1; min-height: 0; overflow: auto; }
+  #summaryArea:not(.hidden) { flex: 1; min-height: 0; overflow-y: auto; }
+  table { border-collapse: collapse; background: var(--surface); font-size: 12.5px; width: max-content; min-width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { border: 1px solid var(--line); padding: 6px 10px; text-align: center; white-space: nowrap; }
+  th { background: var(--surface-2); color: var(--text-2); font-size: 12px; font-weight: 600; }
+  #colHeaderRow th { background: var(--surface); color: var(--text-3); font-size: 11px; font-weight: 500; padding: 3px 10px; }
+  #fieldHeaderRow th { position: sticky; top: 0; z-index: 2; background: var(--surface-2); color: var(--text); white-space: nowrap; box-shadow: inset 0 -1px 0 var(--line-strong); }
+  /* 필터가 적용된 열은 헤더 두 줄(문자행/이름행) 전체를 강조 표시 */
+  #colHeaderRow th.filteredColHeader { background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+  #fieldHeaderRow th.filteredColHeader { background: var(--accent-soft); color: var(--accent); }
+  .colFilterIcon { display: inline-block; margin-left: 5px; cursor: pointer; font-size: 10px; color: #b3b9c5; user-select: none; }
+  .colFilterIcon:hover { color: var(--text); }
   .colFilterIcon.activeFilter {
-    color:#2b3a55; font-weight:bold; font-size:11px;
-    background:#fff; border-radius:50%; width:15px; height:15px;
-    display:inline-flex; align-items:center; justify-content:center;
-    box-shadow: 0 0 0 1px #2b3a55;
+    color: #fff; font-weight: 700; font-size: 10px;
+    background: var(--accent); border-radius: 50%; width: 15px; height: 15px;
+    display: inline-flex; align-items: center; justify-content: center;
   }
-  #rowInsertMenu {
-    position:fixed; z-index:70; background:#fff; border:1px solid #ccc; border-radius:6px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.25); padding:4px 0; min-width:200px;
-  }
-  #rowInsertMenuItem { padding:8px 14px; font-size:13px; cursor:pointer; color:#2b3a55; }
-  #rowInsertMenuItem:hover { background:#eef1f5; }
-  #colFilterPopup, #prodColFilterPopup {
-    position:fixed; z-index:60; background:#fff; border:1px solid #ccc; border-radius:6px;
-    box-shadow:0 8px 24px rgba(0,0,0,0.25); padding:10px; width:220px;
-  }
-  #colFilterPopup input[type=text], #prodColFilterPopup input[type=text] { width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:12px; margin-bottom:8px; }
-  #colFilterColorSection { padding-bottom:8px; margin-bottom:8px; border-bottom:1px solid #eee; }
-  .colFilterBtnRow { display:flex; gap:6px; margin-bottom:6px; }
-  .colFilterBtnRow button { flex:1; padding:4px; font-size:11px; border-radius:4px; border:1px solid #ccc; background:#e8eaee; cursor:pointer; }
-  #colFilterList, #prodColFilterList { max-height:220px; overflow-y:auto; border-top:1px solid #eee; padding-top:6px; }
-  #colFilterList label, #prodColFilterList label { display:flex; align-items:center; gap:6px; padding:3px 2px; font-size:12px; cursor:pointer; border-radius:3px; }
-  #colFilterList label:hover, #prodColFilterList label:hover { background:#f5f7fb; }
-  #colFilterPopup .modalBtns, #prodColFilterPopup .modalBtns { margin-top:10px; padding:0; }
-  #colFilterPopup .modalBtns button, #prodColFilterPopup .modalBtns button { padding:5px 12px; font-size:12px; border-radius:4px; border:none; cursor:pointer; }
-  #prodRawTable th { position:relative; }
-  /* 발주내역 표 헤더는 배경이 흰색이라 필터 아이콘 기본 색상 대비를 mainTable과 다르게 지정 */
-  #prodRawTable .colFilterIcon { color:#8892a0; }
-  #prodRawTable .colFilterIcon:hover { color:#2b3a55; }
-  #prodRawTable th.filteredColHeader { background:#ffd166; color:#2b3a55; }
+  #prodRawTable th { position: relative; }
+  #prodRawTable .colFilterIcon { color: #b3b9c5; }
+  #prodRawTable .colFilterIcon:hover { color: var(--text); }
+  #prodRawTable th.filteredColHeader { background: var(--accent-soft); color: var(--accent); }
   #mainTbody td { min-width: 90px; }
   #mainTbody td.editableCell { cursor: cell; user-select: none; }
-  #mainTbody td.editableCell:hover { background: #fbfcff; }
-  #mainTbody td.editableCell[contenteditable="true"] { cursor: text; user-select: text; background: rgba(91,127,214,0.18); outline: 2px solid #5b7fd6; outline-offset: -2px; }
-  #mainTbody td.cellSelected { background: rgba(91,127,214,0.10); }
+  #mainTbody td.editableCell:hover { background: #fafbfd; }
+  #mainTbody td.editableCell[contenteditable="true"] { cursor: text; user-select: text; background: var(--accent-soft); outline: 2px solid var(--accent); outline-offset: -2px; }
+  #mainTbody td.cellSelected { background: rgba(47, 95, 222, 0.08); }
   /* 생산량계산기(발주내역) 표: 정산내역과 동일한 방식의 드래그 선택 표시 */
   #prodRawTbody td.prodSelectableCell { cursor: cell; user-select: none; }
-  #prodRawTbody td.prodSelectableCell:hover { background: #fbfcff; }
-  #prodRawTbody td.prodCellSelected { background: rgba(91,127,214,0.10); }
+  #prodRawTbody td.prodSelectableCell:hover { background: #fafbfd; }
+  #prodRawTbody td.prodCellSelected { background: rgba(47, 95, 222, 0.08); }
   /* 복사/잘라내기 범위 표시: 선택 영역의 바깥쪽 테두리를 엑셀처럼 움직이는 점선(마칭 앤츠)으로 표시 */
   /* 실제 table border(border-collapse)로 그리면 옆 셀의 자체 테두리와 충돌해서 행마다 다르게 보이므로,
      테두리를 셀 위에 겹치는 장식용 오버레이(::before/::after)로 그려서 표 테두리 규칙과 아예 무관하게 만든다.
@@ -326,22 +205,22 @@
   /* 상 변: ::before, 가로 점선이 오른쪽으로 흐름 */
   #mainTbody td.clipboardEdgeTop:not(.clipboardEdgeBottom)::before {
     content:''; position:absolute; left:-1px; right:-1px; top:-1px; height:2px; pointer-events:none;
-    background-image: linear-gradient(90deg, #1e7a35 50%, transparent 50%);
+    background-image: linear-gradient(90deg, #1b7f4d 50%, transparent 50%);
     background-size: 8px 2px; background-repeat: repeat-x; background-position: 0 0;
     animation: clipMarchRight 0.5s linear infinite;
   }
   /* 하 변: ::before, 가로 점선이 왼쪽으로 흐름 */
   #mainTbody td.clipboardEdgeBottom:not(.clipboardEdgeTop)::before {
     content:''; position:absolute; left:-1px; right:-1px; bottom:-1px; height:2px; pointer-events:none;
-    background-image: linear-gradient(90deg, #1e7a35 50%, transparent 50%);
+    background-image: linear-gradient(90deg, #1b7f4d 50%, transparent 50%);
     background-size: 8px 2px; background-repeat: repeat-x; background-position: 0 0;
     animation: clipMarchLeft 0.5s linear infinite;
   }
   #mainTbody td.clipboardEdgeTop.clipboardEdgeBottom::before {
     content:''; position:absolute; left:-1px; right:-1px; top:-1px; bottom:-1px; pointer-events:none;
     background-image:
-      linear-gradient(90deg, #1e7a35 50%, transparent 50%),
-      linear-gradient(90deg, #1e7a35 50%, transparent 50%);
+      linear-gradient(90deg, #1b7f4d 50%, transparent 50%),
+      linear-gradient(90deg, #1b7f4d 50%, transparent 50%);
     background-size: 8px 2px, 8px 2px;
     background-repeat: repeat-x, repeat-x;
     background-position: 0 0, 0 100%;
@@ -350,116 +229,366 @@
   /* 좌 변: ::after, 세로 점선이 위쪽으로 흐름 */
   #mainTbody td.clipboardEdgeLeft:not(.clipboardEdgeRight)::after {
     content:''; position:absolute; top:-1px; bottom:-1px; left:-1px; width:2px; pointer-events:none;
-    background-image: linear-gradient(0deg, #1e7a35 50%, transparent 50%);
+    background-image: linear-gradient(0deg, #1b7f4d 50%, transparent 50%);
     background-size: 2px 8px; background-repeat: repeat-y; background-position: 0 0;
     animation: clipMarchUp 0.5s linear infinite;
   }
   /* 우 변: ::after, 세로 점선이 아래쪽으로 흐름 */
   #mainTbody td.clipboardEdgeRight:not(.clipboardEdgeLeft)::after {
     content:''; position:absolute; top:-1px; bottom:-1px; right:-1px; width:2px; pointer-events:none;
-    background-image: linear-gradient(0deg, #1e7a35 50%, transparent 50%);
+    background-image: linear-gradient(0deg, #1b7f4d 50%, transparent 50%);
     background-size: 2px 8px; background-repeat: repeat-y; background-position: 0 0;
     animation: clipMarchDown 0.5s linear infinite;
   }
   #mainTbody td.clipboardEdgeLeft.clipboardEdgeRight::after {
     content:''; position:absolute; top:-1px; bottom:-1px; left:-1px; right:-1px; pointer-events:none;
     background-image:
-      linear-gradient(0deg, #1e7a35 50%, transparent 50%),
-      linear-gradient(0deg, #1e7a35 50%, transparent 50%);
+      linear-gradient(0deg, #1b7f4d 50%, transparent 50%),
+      linear-gradient(0deg, #1b7f4d 50%, transparent 50%);
     background-size: 2px 8px, 2px 8px;
     background-repeat: repeat-y, repeat-y;
     background-position: 0 0, 100% 0;
     animation: clipMarchLR2 0.5s linear infinite;
   }
-  #mainTbody td.numCol { background:#f7f8fa; color:#888; }
-  tr.dupRow td.invoiceCell { color:#d0341c; font-weight:bold; background:#ffecec; }
-  #mainTbody td.invoiceFailCell { background:#f5b3aa; color:#7a1207; font-weight:bold; }
-  #mainTbody td.productFailCell { background:#f5b3aa; color:#7a1207; font-weight:bold; }
-  #mainTbody td.priceZeroCell { background:#f5b3aa; color:#7a1207; font-weight:bold; }
-  #priceTable input { width: 90px; }
-  .rowIdx { width: 36px; color:#999; background:#f7f8fa; }
-  #mainTbody td.rowIdx { cursor:pointer; user-select:none; }
-  .overlay { position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.4); z-index: 50; }
-  .modal { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-    background:#fff; border-radius:8px; padding: 20px 24px; z-index: 51;
-    width: 520px; max-height: 82vh; overflow:auto; box-shadow: 0 8px 30px rgba(0,0,0,0.25); }
-  .modal h2 { margin-top:0; font-size:16px; color:#2b3a55; }
-  .modal label { display:block; font-size:12px; color:#555; margin-top:10px; margin-bottom:3px; }
-  .modal input[type=text], .modal input[type=number], .modal select {
-    width:100%; padding:6px 8px; border:1px solid #ccd2da; border-radius:4px; font-size:13px;
+  .rowIdx { width: 40px; color: var(--text-3); background: var(--surface-2); font-size: 11px; }
+  #mainTbody td.rowIdx { cursor: pointer; user-select: none; }
+  #mainTbody td.numCol { background: var(--surface-2); color: var(--text-3); }
+  /* 확인이 필요한 칸: 옅은 붉은 바탕 + 진한 붉은 글자 */
+  tr.dupRow td.invoiceCell { color: var(--danger); font-weight: 600; background: var(--danger-soft); }
+  #mainTbody td.invoiceFailCell, #mainTbody td.productFailCell, #mainTbody td.priceZeroCell { background: #fbdcd8; color: #9c2318; font-weight: 600; }
+  #priceTable input { width: 100px; height: 28px; padding: 0 8px; border: 1px solid transparent; border-radius: 5px; background: transparent; font-size: 12.5px; text-align: center; color: var(--text); }
+  #priceTable input:hover { border-color: var(--line-strong); }
+  #priceTable input:focus { border-color: var(--accent); background: var(--surface); outline: none; box-shadow: 0 0 0 3px rgba(47, 95, 222, 0.14); }
+  #priceTable td { padding: 3px 8px; }
+  #summaryTotalsTable td { font-weight: 700; font-size: 14px; }
+  #emptyState { padding: 56px 20px; text-align: center; color: var(--text-3); font-size: 13px; }
+
+  /* ===================== 작은 팝업(열 필터 / 행 삽입) ===================== */
+  #rowInsertMenu {
+    position: fixed; z-index: 70; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: var(--shadow-pop); padding: 4px; min-width: 200px;
   }
-  .row2 { display:flex; gap:10px; }
-  .row2 > div { flex:1; }
-  .modalBtns { margin-top:18px; display:flex; justify-content:flex-end; gap:8px; }
-  .modalBtns button { padding:7px 16px; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
-  .btnPrimary { background:#2b3a55; color:#fff; }
-  .btnGhost { background:#e8eaee; color:#333; }
-  /* 제거됨 탭: 복원(네이비)/영구삭제(빨강) 버튼 */
-  .btnRestore { background:#3f5273; color:#fff; border:none; border-radius:4px; padding:5px 12px; font-size:12px; cursor:pointer; }
-  .btnRestore:hover { background:#4c6389; }
-  .btnPermDelete { background:#8a2c2c; color:#fff; border:none; border-radius:4px; padding:5px 12px; font-size:12px; cursor:pointer; }
-  .btnPermDelete:hover { background:#a13a3a; }
-  .hidden { display:none !important; }
-  .priceRow { display:flex; flex-direction:column; gap:4px; padding:8px 0; border-bottom:1px solid #eee; font-size:13px;}
-  .priceRow span { font-weight:bold; color:#333; }
-  .priceRow input { width:100%; padding:6px; border:1px solid #ccd2da; border-radius:4px; }
-  .csResultRow { padding:8px; border:1px solid #ddd; border-radius:4px; margin-top:6px; cursor:pointer; font-size:12px; text-align:left; }
-  .csResultRow.selected { background:#e5edff; border-color:#5b7fd6; }
-  .invoiceFailRow { padding:8px; border:1px solid #f0b3ab; background:#fdf1ef; border-radius:4px; margin-top:6px; cursor:pointer; font-size:12px; text-align:left; }
-  .invoiceFailRow:hover { background:#fbe2de; }
-  .invoiceFailRow .ofrMain { font-weight:bold; color:#7a1207; }
-  .invoiceFailRow .ofrMeta { margin-top:2px; color:#777; font-size:11px; }
-  #invoiceUploadSummary .ouFail { cursor:pointer; }
-  #invoiceUploadSummary .ouFail:hover { text-decoration:underline; }
-  .smallNote { font-size:11px; color:#888; margin-top:2px; }
-  .sectionTitle { margin-top:16px; font-weight:bold; font-size:13px; color:#2b3a55; border-top:1px dashed #ccc; padding-top:10px;}
-  #priceTbody button, .delBtn { background:#e05353; color:#fff; border:none; border-radius:4px; padding:3px 8px; cursor:pointer; font-size:11px;}
-  #emptyState { padding: 40px; text-align:center; color:#888; font-size:13px; }
+  #rowInsertMenuItem { padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--text); border-radius: 5px; }
+  #rowInsertMenuItem:hover { background: #f1f3f6; }
+  #colFilterPopup, #prodColFilterPopup {
+    position: fixed; z-index: 60; background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow-pop); padding: 12px; width: 240px;
+  }
+  #colFilterPopup input[type=text], #prodColFilterPopup input[type=text] {
+    width: 100%; height: 32px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); font-size: 12px; margin-bottom: 8px;
+  }
+  #colFilterPopup input[type=text]:focus, #prodColFilterPopup input[type=text]:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(47, 95, 222, 0.14); }
+  #colFilterColorSection { padding-bottom: 8px; margin-bottom: 8px; border-bottom: 1px solid var(--line); }
+  #colFilterColorSection label { display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer; color: var(--text); }
+  .colFilterBtnRow { display: flex; gap: 6px; margin-bottom: 8px; }
+  .colFilterBtnRow button { flex: 1; height: 28px; padding: 0 6px; font-size: 11px; }
+  #colFilterList, #prodColFilterList { max-height: 220px; overflow-y: auto; border-top: 1px solid var(--line); padding-top: 6px; }
+  #colFilterList label, #prodColFilterList label { display: flex; align-items: center; gap: 6px; padding: 4px 4px; font-size: 12px; cursor: pointer; border-radius: 4px; }
+  #colFilterList label:hover, #prodColFilterList label:hover { background: #f1f3f6; }
+  #colFilterPopup .modalBtns, #prodColFilterPopup .modalBtns { margin-top: 10px; padding: 0; }
+  #colFilterPopup .modalBtns button, #prodColFilterPopup .modalBtns button { height: 30px; padding: 0 10px; font-size: 12px; }
+  #colFilterPopup .modalBtns > div, #prodColFilterPopup .modalBtns > div { display: flex; gap: 6px; }
+
+  /* ===================== 창(모달) ===================== */
+  .overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(20, 24, 35, 0.42); z-index: 50; }
+  .modal {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    background: var(--surface); border-radius: 12px; padding: 24px; z-index: 51;
+    width: 520px; max-width: calc(100vw - 24px); max-height: 86vh; overflow: auto; box-shadow: var(--shadow-pop);
+  }
+  .modal h2 { margin: 0 0 12px; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+  .modal label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-top: 12px; margin-bottom: 5px; }
+  .modal input[type=text], .modal input[type=number], .modal input[type=date], .modal select, .modal textarea, .priceRow input, .prodUpdateRow input {
+    width: 100%; height: 36px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+    font-size: 13px; color: var(--text); background: var(--surface); transition: border-color .12s, box-shadow .12s;
+  }
+  .modal textarea { height: auto; padding: 8px 10px; line-height: 1.5; resize: vertical; }
+  .modal input:focus, .modal select:focus, .modal textarea:focus, .priceRow input:focus, .prodUpdateRow input:focus {
+    border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(47, 95, 222, 0.14);
+  }
+  .modal input::placeholder, .modal textarea::placeholder { color: #a9b0bc; }
+  .modal input[type=checkbox] { width: auto; height: auto; vertical-align: middle; margin: 0 6px 0 0; accent-color: var(--ink); }
+  .modal table { margin-top: 8px; }
+  .row2 { display: flex; gap: 10px; }
+  .row2 > div { flex: 1; min-width: 0; }
+  .modalBtns { margin-top: 20px; display: flex; justify-content: flex-end; gap: 8px; }
+  .modalBtns button { height: 36px; padding: 0 16px; }
+  .hidden { display: none !important; }
+  .smallNote { font-size: 12px; color: var(--text-3); margin-top: 2px; line-height: 1.55; }
+  .sectionTitle { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 13px; font-weight: 700; color: var(--text); }
+  /* 맨 위에 오는 제목(margin-top:0으로 지정된 것)에는 위쪽 구분선이 필요 없다 */
+  .sectionTitle[style*="margin-top:0"] { border-top: none; padding-top: 0; }
+  .sectionTitle + table, .sectionTitle + .smallNote + table { margin-top: 10px; }
+  .priceRow { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+  .priceRow span { font-weight: 600; color: var(--text); }
+  #csSearchBtn { margin-top: 8px; }
+  .csResultRow { padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--radius); margin-top: 6px; cursor: pointer; font-size: 12px; text-align: left; line-height: 1.5; }
+  .csResultRow:hover { background: var(--surface-2); }
+  .csResultRow.selected { background: var(--accent-soft); border-color: var(--accent); }
+  .invoiceFailRow { padding: 10px 12px; border: 1px solid var(--danger-line); background: var(--danger-soft); border-radius: var(--radius); margin-top: 6px; cursor: pointer; font-size: 12px; text-align: left; }
+  .invoiceFailRow:hover { background: #fbe6e2; }
+  .invoiceFailRow .ofrMain { font-weight: 600; color: #9c2318; }
+  .invoiceFailRow .ofrMeta { margin-top: 2px; color: var(--text-2); font-size: 11px; }
+  .prodUpdateRow { padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .prodUpdateRow .origName { font-size: 12px; color: var(--danger); font-weight: 600; margin-bottom: 6px; word-break: break-all; }
+  .prodUpdateRow .fieldsRow { display: flex; gap: 10px; }
+  .prodUpdateRow .fieldsRow > div { flex: 1; }
+  .prodUpdateRow label { display: block; font-size: 11px; color: var(--text-3); margin: 0 0 4px; }
+  #prodRemoveConfirmUnparsed { margin-top: 10px; color: var(--danger); }
+
+  /* ===================== 생산량계산기 ===================== */
+  .prodSheet { display: none; flex-direction: column; flex: 1; min-height: 0; }
+  .prodSheet.active { display: flex; }
+  #prodContent { display: flex; flex: 1; min-height: 0; gap: 16px; padding: 16px 20px; }
+  #prodRawArea, #prodSummaryArea {
+    flex: 1; min-height: 0; display: flex; flex-direction: column;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; overflow: auto;
+  }
+  .tableScroll.padded { padding: 16px 20px; }
+  .btnRow { display: flex; gap: 8px; margin: 12px 0; flex: 0 0 auto; }
+  #sheet2 .btnRow { margin-bottom: 0; }
+  .statusBadge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+  .statusBadge.ok { background: var(--success-soft); color: var(--success); }
+  .statusBadge.fail { background: var(--danger-soft); color: var(--danger); }
+  .statusBadge.fixed { background: var(--accent-soft); color: var(--accent); }
+  #prodRunSummary { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .prodRunLine {
+    flex: 1 1 160px; display: flex; flex-direction: column; gap: 6px;
+    background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px;
+    font-size: 12px; font-weight: 500; color: var(--text-2);
+  }
+  .prodRunLine > span:last-child { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+  #prodRunSummary .smallNote { flex: 1 1 100%; }
+  #prodUploadLog, #invoiceUploadLogArea { flex: 0 0 auto; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  #prodUploadLog .sectionTitle, #invoiceUploadLogArea .sectionTitle { margin-top: 0; padding-top: 0; border-top: none; font-size: 12px; color: var(--text-2); }
+  .uploadLogHeader { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
+  .uploadLogToggleBtn { font-size: 11px; font-weight: 500; color: var(--text-3); }
+  .uploadLogListInner { max-height: 64px; overflow-y: auto; margin-top: 4px; }
+  .uploadLogListInner.hidden { display: none; }
+  .uploadLogLine { font-size: 12px; color: var(--text-2); padding: 3px 0; }
+  .uploadLogLine .okCount { color: var(--success); font-weight: 600; }
+  .uploadLogLine .failCount { color: var(--danger); font-weight: 600; }
+  .uploadLogLine .miniBtn { margin-left: 8px; }
+  #prodRawTbody tr.failRow td { background: var(--danger-soft); color: #9c2318; }
+  #prodRawTbody tr.updatedRow td, #prodLineTbody tr.updatedRow td, #prodStatusTbody tr.updatedRow td { background: #f0f8f3; color: #1b6b42; }
+
+  /* ===================== 맘푸드일지 ===================== */
+  #inboundBody { display: flex; flex: 1; min-height: 0; }
+  #inboundCalendarArea { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; padding: 16px 20px 20px; }
+  #inboundCalHeader { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; margin-bottom: 12px; }
+  #inboundCalHeader .btnGhost { height: 32px; }
+  #btnInboundPrevMonth, #btnInboundNextMonth, #btnManualCalPrev, #btnManualCalNext { width: 32px; height: 32px; padding: 0 0 2px; font-size: 18px; line-height: 1; color: var(--text-2); }
+  #btnInboundToday { margin-left: 6px; }
+  #inboundCalTitleWrap { position: relative; display: inline-block; }
+  #inboundCalTitle { font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: var(--text); min-width: 124px; text-align: center; cursor: pointer; border-radius: var(--radius-sm); padding: 4px 8px; }
+  #inboundCalTitleWrap:hover #inboundCalTitle { background: #eceef2; }
+  #inboundMonthPicker {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    opacity: 0; cursor: pointer; border: none; padding: 0; margin: 0;
+  }
+  #inboundCalSummary { margin-left: auto; font-size: 12px; color: var(--text-2); text-align: right; }
+  /* 표 대신 CSS Grid로 구성 - 주(week) 행들이 남는 세로 공간을 균등하게 채우도록(1fr) 해서
+     달이 몇 주로 구성되든 달력이 영역 하단까지 꽉 차고 밑에 빈 여백이 남지 않게 한다 */
+  #inboundCalGridWrap { flex: 1; min-height: 0; overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--line); }
+  #inboundCalGrid {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    height: 100%; gap: 1px; background: var(--line);
+  }
+  #inboundCalBody { display: contents; }
+  .calHeadCell { background: var(--surface-2); color: var(--text-3); padding: 8px 6px; text-align: center; font-weight: 600; font-size: 12px; }
+  .calHeadCell.sun { color: #d0574b; }
+  .calHeadCell.sat { color: #4a78d0; }
+  /* 위쪽 여백(6px)을 바꾸면 행사 막대 위치(EVENT_BAR_TOP)도 함께 바꿔야 한다 */
+  .calDayCell { background: var(--surface); padding: 6px 7px; cursor: pointer; overflow: hidden; min-width: 0; min-height: 0; display: flex; flex-direction: column; transition: background-color .1s; }
+  .calDayCell:hover { background: #f8f9fc; }
+  .calDayCell.otherMonth { background: #fafbfc; }
+  .calDayCell.selectedDay { background: #f3f6fe; outline: 2px solid var(--accent); outline-offset: -2px; }
+  .dayNum { font-size: 12px; font-weight: 600; color: var(--text); }
+  /* 막대가 날짜 숫자 바로 아래에 오도록 날짜 숫자 줄의 높이를 20px로 고정한다 */
+  .calDayCell > .dayNum { flex: 0 0 auto; align-self: flex-start; box-sizing: border-box; height: 20px; line-height: 20px; }
+  .calDayCell.today .dayNum { color: #fff; background: var(--accent); border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; }
+  .dayNum.monthMark { color: var(--text-2); white-space: nowrap; }
+  .calDayCell.otherMonth .dayNum { color: #bcc2cc; }
+  .calDayCell.otherMonth .dayNum.monthMark { color: #a4abb7; }
+  /* 오늘이 1일이면 "10월 1"처럼 글자가 길어서 동그라미에 들어가지 않으므로, 글자 길이에 맞는 알약 모양으로 표시한다 */
+  .calDayCell.today .dayNum.monthMark { width: auto; height: 20px; padding: 0 8px; border-radius: 10px; color: #fff; background: var(--accent); }
+  .dayBadge { display: inline-block; align-self: flex-start; flex: 0 0 auto; margin-top: 4px; padding: 1px 6px; border-radius: 4px; background: var(--success-soft); color: var(--success); font-size: 10px; font-weight: 600; line-height: 1.5; }
+  .dayBadge.holidayBadge { background: var(--danger-soft); color: var(--danger); }
+  .dayBadge.prodBadge { background: var(--warn-soft); color: var(--warn); }
+  .dayBadge.salesBadge { background: var(--accent-soft); color: var(--accent); }
+  .dayBadge.purchaseBadge { background: #f6efe4; color: #84571a; }
+  .calDayCell.otherMonth .dayBadge, .calDayCell.otherMonth .dayBadge.prodBadge { background: #eef0f3; color: #9aa1ad; }
+  .dayItemPreview { margin-top: 2px; font-size: 11px; color: var(--text-2); line-height: 1.4; word-break: break-all; }
+  .calDayCell.otherMonth .dayItemPreview { color: #adb3be; }
+  /* 일지 메모 미리보기: 보여줄 줄 수(-webkit-line-clamp)는 fitCalendarMemos()가 칸 높이에 맞춰 정하고, 넘치면 끝이 …로 표시된다 */
+  .dayMemoPreview {
+    margin-top: 3px; font-size: 11px; color: var(--text); line-height: 1.4; word-break: break-all; white-space: pre-line;
+    flex: 0 0 auto; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1;
+  }
+  .calDayCell.otherMonth .dayMemoPreview { color: #adb3be; }
+  .calDayCell.holidayDay { background: #fff7f6; }
+  .calDayCell.holidayDay:hover { background: #fff0ee; }
+  .calDayCell.holidayDay .dayNum { color: var(--danger); }
+  .calDayCell.holidayDay.today .dayNum { color: #fff; }
+  .calDayCell.holidayDay.selectedDay { background: #fff0ee; }
+  .calDayCell.otherMonth.holidayDay { background: #fbf5f4; }
+  /* 달력의 행사 막대: 날짜 칸들 위에 겹쳐서, 시작 칸부터 끝 칸까지 하나로 이어 그린다(위치·색은 renderInboundCalendar가 지정).
+     칸 안에는 막대가 지나갈 자리(dayEventSpace)를 비워 둔다. */
+  .dayEventSpace { flex: 0 0 auto; }
+  .dayEventMore { flex: 0 0 auto; font-size: 10px; font-weight: 600; color: var(--text-2); }
+  .calEventBar {
+    align-self: start; z-index: 1; min-width: 0; height: 16px; line-height: 16px; padding: 0 7px;
+    font-size: 10.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    pointer-events: none; /* 막대 위를 눌러도 아래의 날짜 칸이 눌리게 한다 */
+  }
+  .calEventBar.startsHere { margin-left: 4px; border-top-left-radius: 4px; border-bottom-left-radius: 4px; }
+  .calEventBar.endsHere { margin-right: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; }
+  /* 세금계산서 매출/매입 표시 */
+  .taxLineGroup { flex: 0 0 auto; }
+  .taxMore { margin-top: 2px; font-size: 10px; color: var(--text-3); }
+  .calDayCell.otherMonth .taxMore { color: #adb3be; }
+
+  /* 오른쪽 상세 */
+  #inboundDetailArea { width: 340px; flex: 0 0 auto; border-left: 1px solid var(--line); padding: 18px 18px 20px; overflow: auto; background: var(--surface); }
+  #inboundDetailTitle { font-size: 15px; letter-spacing: -0.01em; margin-bottom: 12px; }
+  .inboundDetailRow { padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 12px; line-height: 1.5; }
+  .inboundDetailRow .idrVendor { font-size: 13px; font-weight: 600; color: var(--text); }
+  .inboundDetailRow .idrItem { margin-top: 2px; color: var(--text); }
+  .inboundDetailRow .idrMeta { margin-top: 2px; color: var(--text-3); }
+  /* 일지 / 발주량 / 행사는 테두리가 있는 카드로 묶어 세금계산서 목록과 구분한다 */
+  .journalDetailRow, .prodRecordRow, .eventDetailRow {
+    background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin-bottom: 8px;
+  }
+  .journalEditBtn, .idrDelBtn { float: right; }
+  .journalFieldText { white-space: pre-wrap; word-break: break-word; margin-top: 4px; color: var(--text); }
+  .journalDetailItem + .journalDetailItem { border-top: 1px solid var(--line); margin-top: 8px; padding-top: 8px; }
+  .prodRecordRow details { margin-top: 6px; }
+  .prodRecordRow summary { cursor: pointer; color: var(--text-2); font-size: 11px; }
+  .prodRecordRow .delBtn { margin-left: 6px; vertical-align: middle; }
+  .eventDetailRow .idrVendor + .idrMeta + .idrVendor { margin-top: 8px; }
+  .idrHolidayTag, .idrTaxTag, .idrManualTag, .idrEventTag {
+    display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 600; vertical-align: middle; line-height: 1.5;
+  }
+  .idrHolidayTag, .idrTaxTag, .idrManualTag { margin-left: 6px; }
+  .idrEventTag { margin-right: 6px; background: #eceef2; color: var(--text-2); }
+  .idrHolidayTag { background: var(--danger-soft); color: var(--danger); }
+  .idrTaxTag.sales { background: var(--accent-soft); color: var(--accent); }
+  .idrTaxTag.purchase { background: #f6efe4; color: #84571a; }
+  .idrManualTag { background: #eceef2; color: var(--text-2); }
+
+  /* 일지 작성창 */
+  .journalTopRow { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-start; }
+  .journalTopRow .journalCheckLabel { flex: 0 0 auto; margin-top: 10px; }
+  .modal label.journalCheckLabel { font-size: 13px; color: var(--text); font-weight: 600; cursor: pointer; }
+  .journalEventForm { flex: 1 1 380px; min-width: 0; border: 1px solid var(--line); background: var(--surface-2); border-radius: var(--radius); padding: 10px 12px 12px; }
+  .journalEventFormTitle { font-size: 12px; font-weight: 700; color: var(--text-2); }
+  .journalEventFields { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; color: var(--text-2); }
+  .journalEventFields input[type=text] { flex: 1 1 120px; min-width: 0; width: auto; height: 34px; }
+  .journalEventFields input[type=date] { width: auto; height: 34px; }
+  .journalEventFields button { height: 34px; padding: 0 12px; }
+  .journalEventPeriodLabel { font-weight: 600; }
+  #journalItemList { max-height: 240px; overflow-y: auto; }
+  .journalItemRow { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; margin-top: 6px; border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); font-size: 13px; line-height: 1.5; }
+  .journalItemRow.editing { border-color: var(--accent); background: var(--accent-soft); }
+  .journalItemText { flex: 1; min-width: 0; white-space: pre-wrap; word-break: break-word; }
+  .journalItemBtns { display: flex; gap: 4px; flex: 0 0 auto; }
+  .journalEventRow.editing { background: var(--accent-soft); }
+  .journalEventPeriod { display: block; font-size: 11px; color: var(--text-3); }
+  #journalItemEmpty { margin-top: 8px; }
+  #journalMemo { margin-top: 10px; }
+
+  /* 세금계산서 직접입력 창 안의 작은 달력 */
+  #manualCalHeader { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+  #manualCalTitle { flex: 1; text-align: center; font-weight: 700; color: var(--text); font-size: 14px; }
+  #manualCalGrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin-top: 8px; }
+  .miniHeadCell { padding: 4px; text-align: center; font-size: 11px; font-weight: 600; color: var(--text-3); }
+  .miniDayCell { padding: 6px 2px; text-align: center; font-size: 12px; color: var(--text); cursor: pointer; border-radius: var(--radius-sm); }
+  .miniDayCell:hover { background: #f1f3f6; }
+  .miniDayCell.otherMonth { color: #c3c8d1; }
+  .miniDayCell.today { font-weight: 700; color: var(--accent); }
+  .miniDayCell.selectedDay { background: var(--ink); color: #fff; }
+  #manualSelectedDateLabel { margin-top: 8px; font-weight: 600; color: var(--text); }
+
+  /* ===================== 잠금 화면 ===================== */
   #lockScreen {
     position: fixed; inset: 0; z-index: 9999;
-    background: #1c2536; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); display: flex; align-items: center; justify-content: center; padding: 20px;
   }
   #lockBox {
-    background: #fff; border-radius: 10px; padding: 32px 36px; width: 320px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.35); text-align: center;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 36px 32px 28px; width: 340px; max-width: 100%;
+    box-shadow: 0 10px 30px rgba(20, 28, 45, 0.07); text-align: center;
   }
-  #lockBox h2 { margin: 0 0 6px; color: #2b3a55; font-size: 18px; }
-  #lockBox p { margin: 0 0 18px; color: #777; font-size: 12px; }
+  #lockBox h2 { margin: 0 0 6px; color: var(--text); font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+  #lockBox p { margin: 0 0 22px; color: var(--text-3); font-size: 13px; }
   #lockPassword {
-    width: 100%; padding: 10px; border: 1px solid #ccd2da; border-radius: 6px;
-    font-size: 16px; text-align: center; letter-spacing: 4px;
+    width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--radius);
+    font-size: 16px; text-align: center; letter-spacing: 4px; color: var(--text);
   }
-  #lockError { color: #d0341c; font-size: 12px; margin-top: 10px; min-height: 16px; }
+  #lockPassword::placeholder { letter-spacing: 0; color: #a9b0bc; font-size: 14px; }
+  #lockPassword:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(47, 95, 222, 0.14); }
+  #lockError { color: var(--danger); font-size: 12px; margin-top: 12px; min-height: 16px; }
   #lockSubmit {
-    margin-top: 14px; width: 100%; padding: 10px; border: none; border-radius: 6px;
-    background: #2b3a55; color: #fff; font-size: 14px; cursor: pointer;
+    margin-top: 10px; width: 100%; height: 44px; border: none; border-radius: var(--radius);
+    background: var(--ink); color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .12s;
   }
-  #lockSubmit:hover { background: #3f5273; }
-  /* ===== 부과세계산 ===== */
-  #vatBody { flex:1; min-height:0; overflow:auto; padding:24px 14px; display:flex; justify-content:center; align-items:flex-start; }
-  #vatCard { background:#fff; border-radius:8px; padding:22px 24px; width:100%; max-width:460px; box-shadow:0 2px 10px rgba(0,0,0,0.08); }
-  #vatCard label { display:block; font-size:12px; color:#555; margin-top:16px; margin-bottom:4px; }
-  #vatInput { width:100%; padding:10px 12px; border:1px solid #ccd2da; border-radius:6px; font-size:20px; text-align:right; font-family:inherit; }
-  #vatInput:focus { outline:2px solid #5b7fd6; outline-offset:-1px; }
-  .vatLine { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; padding:10px 14px; border-radius:6px; background:#f2f3f5; font-size:13px; color:#555; }
-  .vatLine small { display:block; font-size:11px; color:#888; font-weight:normal; }
-  .vatLine > span:last-child { font-weight:bold; font-size:16px; color:#333; user-select:all; }
-  .vatLine.vatMain { background:#fff3cd; color:#2b3a55; font-weight:bold; margin-top:16px; }
-  .vatLine.vatMain > span:last-child { font-size:24px; color:#2b3a55; }
-  #vatBtns { margin-top:14px; display:flex; align-items:center; gap:8px; }
-  #vatBtns button { padding:7px 14px; border:none; border-radius:4px; cursor:pointer; font-size:13px; background:#2b3a55; color:#fff; }
-  #vatBtns #btnVatClear { background:#e8eaee; color:#333; }
-  /* ===== 서버 공유 저장 상태 표시 ===== */
-  #syncStatus { margin-left:auto; font-size:12px; color:#cfd6e4; white-space:nowrap; }
+  #lockSubmit:hover { background: var(--ink-hover); }
+
+  /* ===================== 부과세계산 ===================== */
+  #vatBody { flex: 1; min-height: 0; overflow: auto; padding: 32px 16px; display: flex; justify-content: center; align-items: flex-start; }
+  #vatCard { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 24px; width: 100%; max-width: 460px; }
+  #vatCard .sectionTitle { font-size: 16px; letter-spacing: -0.01em; }
+  #vatCard label { display: block; font-size: 12px; font-weight: 500; color: var(--text-2); margin-top: 18px; margin-bottom: 6px; }
+  #vatInput { width: 100%; height: 48px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--radius); font-size: 20px; font-weight: 600; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+  #vatInput:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px rgba(47, 95, 222, 0.14); }
+  #vatInput::placeholder { color: #b5bbc6; font-weight: 400; }
+  .vatLine { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 8px; padding: 12px 14px; border-radius: var(--radius); background: var(--surface-2); border: 1px solid var(--line); font-size: 13px; color: var(--text-2); }
+  .vatLine small { display: block; margin-top: 2px; font-size: 11px; color: var(--text-3); font-weight: 400; }
+  .vatLine > span:last-child { font-weight: 700; font-size: 16px; color: var(--text); user-select: all; font-variant-numeric: tabular-nums; }
+  .vatLine.vatMain { margin-top: 16px; background: var(--accent-soft); border-color: #d9e3fb; color: var(--text); font-weight: 600; }
+  .vatLine.vatMain > span:last-child { font-size: 26px; letter-spacing: -0.02em; }
+  #vatBtns { margin-top: 16px; display: flex; align-items: center; gap: 8px; }
+
+  /* ===================== 불러오는 중 / 알림 ===================== */
   #syncLoading {
-    position:fixed; inset:0; z-index:9000; background:rgba(28,37,54,0.82);
-    display:flex; align-items:center; justify-content:center; padding:20px;
+    position: fixed; inset: 0; z-index: 9000; background: rgba(245, 246, 248, 0.92);
+    display: flex; align-items: center; justify-content: center; padding: 20px;
   }
-  #syncLoadingMsg { background:#fff; border-radius:8px; padding:20px 28px; font-size:14px; color:#2b3a55; font-weight:bold; max-width:460px; text-align:center; line-height:1.6; }
+  #syncLoadingMsg {
+    display: flex; flex-direction: column; align-items: center; gap: 14px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 24px 28px;
+    font-size: 13px; font-weight: 500; color: var(--text-2); max-width: 460px; text-align: center; line-height: 1.6;
+    box-shadow: 0 10px 30px rgba(20, 28, 45, 0.07);
+  }
+  #syncLoadingMsg::before { content: ''; width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--line-strong); border-top-color: var(--ink); animation: syncSpin .8s linear infinite; }
+  @keyframes syncSpin { to { transform: rotate(360deg); } }
   #syncToast {
-    position:fixed; left:50%; bottom:28px; transform:translateX(-50%); z-index:9100;
-    background:#7a1207; color:#fff; padding:12px 18px; border-radius:6px; font-size:13px;
-    max-width:560px; line-height:1.5; box-shadow:0 8px 24px rgba(0,0,0,0.3);
+    position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); z-index: 9100;
+    background: var(--ink); color: #fff; padding: 12px 16px; border-radius: 10px; font-size: 13px; border-left: 3px solid #ff8a7a;
+    max-width: 560px; line-height: 1.55; box-shadow: var(--shadow-pop);
+  }
+
+  /* ===================== 좁은 화면(휴대폰·작은 창) =====================
+     옆으로 나란히 두던 영역을 위아래로 쌓아서, 달력이나 표가 찌그러지지 않게 한다 */
+  @media (max-width: 900px) {
+    #globalBar { padding: 0 12px; }
+    #brandName { margin-right: 10px; }
+    #toolbar, #prodToolbar, #inboundToolbar, #tabs, #prodTabs { padding-left: 12px; padding-right: 12px; }
+    #tabs, #prodTabs { flex-wrap: wrap; }
+    .sheet, .tableScroll.padded { padding: 12px; }
+    #inboundBody { flex-direction: column; overflow-y: auto; }
+    #inboundCalendarArea { flex: 0 0 auto; height: 74vh; min-height: 440px; padding: 12px; }
+    #inboundCalHeader { flex-wrap: wrap; }
+    #inboundCalSummary { flex: 1 1 100%; margin-left: 0; text-align: left; }
+    #inboundDetailArea { width: auto; flex: 0 0 auto; border-left: none; border-top: 1px solid var(--line); overflow: visible; padding: 16px 12px 24px; }
+    .calDayCell { padding: 6px 3px; }
+    .dayBadge { white-space: nowrap; }
+    #prodContent { flex-direction: column; overflow-y: auto; padding: 12px; gap: 12px; }
+    #prodRawArea, #prodSummaryArea { flex: 0 0 auto; }
+    #prodRawArea { max-height: 70vh; }
+    #prodFileFilterArea { margin-left: 0; }
+    .modal { padding: 18px; }
+    .row2 { flex-wrap: wrap; }
+    .row2 > div { flex: 1 1 140px; }
   }
 </style>
 </head>
@@ -468,7 +597,7 @@
 <div id="lockScreen" class="hidden">
   <div id="lockBox">
     <h2>맘푸드 업무시스템</h2>
-    <p>&nbsp;</p>
+    <p>비밀번호를 입력하세요</p>
     <input type="password" id="lockPassword" inputmode="numeric" autocomplete="off" placeholder="비밀번호">
     <button id="lockSubmit">확인</button>
     <div id="lockError"></div>
@@ -476,6 +605,7 @@
 </div>
 
 <div id="globalBar">
+  <span id="brandName">맘푸드</span>
   <button class="appTabBtn active" data-app="inbound">맘푸드일지</button>
   <button class="appTabBtn" data-app="settlement">자동정산기</button>
   <button class="appTabBtn" data-app="production">생산량계산기</button>
@@ -487,18 +617,18 @@
 
 <div id="appSettlement" class="appScreen">
 <div id="toolbar">
-  <button id="btnNewProfile">① 프로필생성</button>
-  <button id="btnUploadInvoice">② 송장업로드</button>
-  <button id="btnPrice">③ 단가입력</button>
-  <button id="btnSettle">④ 정산</button>
-  <button id="btnCS">⑤ CS</button>
-  <button id="btnEventPrice" style="background:#b8860b;">행사가</button>
-  <button id="btnExport">⇩ 엑셀내보내기</button>
+  <button id="btnNewProfile"><span class="stepNo">1</span>프로필생성</button>
+  <button id="btnUploadInvoice"><span class="stepNo">2</span>송장업로드</button>
+  <button id="btnPrice"><span class="stepNo">3</span>단가입력</button>
+  <button id="btnSettle"><span class="stepNo">4</span>정산</button>
+  <button id="btnCS"><span class="stepNo">5</span>CS</button>
+  <button id="btnEventPrice">행사가</button>
+  <button id="btnExport">엑셀내보내기</button>
   <button id="btnResetUpload">업로드내역초기화</button>
-  <button id="btnEditProfile" style="background:#3a6b4c; margin-left:auto;">프로필수정</button>
-  <button id="btnDeleteProfile" style="background:#8a2c2c;">프로필삭제</button>
+  <button id="btnEditProfile">프로필수정</button>
+  <button id="btnDeleteProfile" class="tbDanger">프로필삭제</button>
   <div id="profileArea">
-    프로필:
+    프로필
     <select id="profileSelect"></select>
   </div>
 </div>
@@ -531,9 +661,9 @@
       <tbody id="priceTbody"></tbody>
     </table>
   </div>
-  <div style="margin-top:10px; display:flex; gap:8px; flex:0 0 auto;">
-    <button id="btnAddPriceRow" class="btnGhost" style="padding:6px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;">+ 상품 추가</button>
-    <button id="btnClearPrices" style="padding:6px 12px;border-radius:4px;border:none;background:#8a2c2c;color:#fff;cursor:pointer;">단가 전체 삭제</button>
+  <div class="btnRow">
+    <button id="btnAddPriceRow" class="btnGhost">+ 상품 추가</button>
+    <button id="btnClearPrices" class="btnDanger">단가 전체 삭제</button>
   </div>
 </div>
 
@@ -550,9 +680,9 @@
       <thead><tr><th>총 합포장 금액</th><th>총 환불금액</th><th>총 정산금액</th></tr></thead>
       <tbody>
         <tr>
-          <td id="sumCombinedPack" style="font-weight:bold; color:#2b3a55;"></td>
-          <td id="sumRefund" style="font-weight:bold; color:#2b3a55;"></td>
-          <td id="sumSettlement" style="font-weight:bold; color:#2b3a55;"></td>
+          <td id="sumCombinedPack"></td>
+          <td id="sumRefund"></td>
+          <td id="sumSettlement"></td>
         </tr>
       </tbody>
     </table>
@@ -565,7 +695,7 @@
     <button id="btnProdUpload">발주서업로드</button>
     <button id="btnProdUpdate">발주서업데이트</button>
     <button id="btnProdManualInput">생산량입력</button>
-    <button id="btnProdRemove" style="background:#8a2c2c;">발주제거</button>
+    <button id="btnProdRemove" class="tbDanger">발주제거</button>
     <button id="btnProdReset">초기화</button>
   </div>
   <div id="prodTabs">
@@ -573,7 +703,7 @@
     <button class="prodTabBtn" data-ptab="prodView2">인식현황</button>
     <button class="prodTabBtn" data-ptab="prodView3">제거됨</button>
     <div id="prodFileFilterArea">
-      파일: <select id="prodFileFilter"><option value="">전체</option></select>
+      파일 <select id="prodFileFilter"><option value="">전체</option></select>
     </div>
   </div>
 
@@ -616,7 +746,7 @@
   </div>
 
   <div id="prodView2" class="prodSheet">
-    <div class="tableScroll" style="padding:14px;">
+    <div class="tableScroll padded">
       <div class="sectionTitle" style="margin-top:0;">현재 업로드 내역 인식 현황</div>
       <div class="smallNote">지금까지 올라온 발주서에 등장한 상품명별 인식 상태입니다.</div>
       <table id="prodStatusTable">
@@ -635,10 +765,10 @@
   </div>
 
   <div id="prodView3" class="prodSheet">
-    <div class="tableScroll" style="padding:14px;">
+    <div class="tableScroll padded">
       <div class="sectionTitle" style="margin-top:0;">제거된 발주 내역</div>
       <div class="smallNote">[발주제거]로 삭제한 내역입니다. 복원하면 발주내역에 다시 추가됩니다.</div>
-      <div style="margin:10px 0;">
+      <div class="btnRow">
         <button type="button" id="btnProdRemovedRestoreAll" class="btnRestore">전체 복원</button>
         <button type="button" id="btnProdRemovedClearAll" class="btnPermDelete">전체 영구삭제</button>
       </div>
@@ -660,14 +790,14 @@
   <div id="inboundBody">
     <div id="inboundCalendarArea">
       <div id="inboundCalHeader">
-        <button id="btnInboundPrevMonth" class="btnGhost">◀</button>
+        <button id="btnInboundPrevMonth" class="btnGhost" title="이전 달">‹</button>
         <div id="inboundCalTitleWrap">
           <div id="inboundCalTitle"></div>
           <input type="month" id="inboundMonthPicker" title="이동할 연월 선택">
         </div>
-        <button id="btnInboundNextMonth" class="btnGhost">▶</button>
-        <button id="btnInboundToday" class="btnGhost" style="margin-left:10px;">오늘</button>
-        <div id="inboundCalSummary" class="smallNote" style="margin-left:auto;"></div>
+        <button id="btnInboundNextMonth" class="btnGhost" title="다음 달">›</button>
+        <button id="btnInboundToday" class="btnGhost">오늘</button>
+        <div id="inboundCalSummary"></div>
       </div>
       <div id="inboundCalGridWrap">
         <div id="inboundCalGrid">
@@ -729,9 +859,9 @@
 
 <div id="colFilterPopup" class="hidden">
   <div id="colFilterColorSection" class="hidden">
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
-      <input type="checkbox" id="colFilterColorOnly" style="width:auto;">
-      <span>🔴 배경색(강조표시) 있는 셀만 보기</span>
+    <label>
+      <input type="checkbox" id="colFilterColorOnly">
+      <span>강조 표시된(붉은 바탕) 셀만 보기</span>
     </label>
   </div>
   <input type="text" id="colFilterSearch" placeholder="검색">
@@ -741,7 +871,7 @@
   </div>
   <div id="colFilterList"></div>
   <div class="modalBtns" style="justify-content:space-between;">
-    <button type="button" id="colFilterClearThis" style="padding:5px 12px;font-size:12px;border-radius:4px;border:none;cursor:pointer;background:#8a2c2c;color:#fff;">필터 해제</button>
+    <button type="button" id="colFilterClearThis" class="btnDanger">필터 해제</button>
     <div>
       <button type="button" class="btnGhost" id="colFilterCancel">취소</button>
       <button type="button" class="btnPrimary" id="colFilterApply">적용</button>
@@ -758,7 +888,7 @@
   </div>
   <div id="prodColFilterList"></div>
   <div class="modalBtns" style="justify-content:space-between;">
-    <button type="button" id="prodColFilterClearThis" style="padding:5px 12px;font-size:12px;border-radius:4px;border:none;cursor:pointer;background:#8a2c2c;color:#fff;">필터 해제</button>
+    <button type="button" id="prodColFilterClearThis" class="btnDanger">필터 해제</button>
     <div>
       <button type="button" class="btnGhost" id="prodColFilterCancel">취소</button>
       <button type="button" class="btnPrimary" id="prodColFilterApply">적용</button>
@@ -796,7 +926,7 @@
   <div class="sectionTitle">상품명 자동 합치기</div>
   <div class="smallNote">체크하면 송장 업로드 시 "상품명 + 내품갯수"를 합쳐 상품명을 만듭니다. 예: 상품명 "칼국수" + 내품갯수 "10" → 상품명 "칼국수 10인" (내품갯수는 1로 재설정됩니다). 이미 상품명에 인분수가 포함된 거래처는 체크하지 마세요.</div>
   <div class="row2">
-    <div><label><input type="checkbox" id="pfCombineNameQty" style="width:auto;vertical-align:middle;margin-right:6px;">상품명에 내품갯수 자동으로 합치기</label></div>
+    <div><label><input type="checkbox" id="pfCombineNameQty">상품명에 내품갯수 자동으로 합치기</label></div>
   </div>
 
   <div class="modalBtns">
@@ -821,7 +951,7 @@
   <h2>CS 처리</h2>
   <label>검색 (송장번호 / 수취인 / 전화번호 중 1개 이상)</label>
   <input type="text" id="csSearchInput" placeholder="검색어 입력">
-  <button id="csSearchBtn" class="btnGhost" style="margin-top:8px;padding:6px 12px;border-radius:4px;border:1px solid #ccc;cursor:pointer;">검색</button>
+  <button id="csSearchBtn" class="btnGhost">검색</button>
   <div id="csResults"></div>
 
   <div id="csApplyArea" class="hidden">
@@ -899,10 +1029,10 @@
     <thead><tr><th>상품</th><th>총 인분</th></tr></thead>
     <tbody id="prodRemoveConfirmBaseTbody"></tbody>
   </table>
-  <div id="prodRemoveConfirmUnparsed" class="hidden smallNote" style="margin-top:10px;color:#a13a3a;"></div>
+  <div id="prodRemoveConfirmUnparsed" class="hidden smallNote"></div>
   <div class="modalBtns">
     <button class="btnGhost" id="prodRemoveConfirmCancel">취소</button>
-    <button class="btnPrimary" id="prodRemoveConfirmOk" style="background:#8a2c2c;">제거</button>
+    <button class="btnDangerSolid" id="prodRemoveConfirmOk">제거</button>
   </div>
 </div>
 
@@ -944,12 +1074,12 @@
   <h2>세금계산서 직접입력</h2>
   <div class="smallNote">세금계산서 파일이 없을 때 달력에서 날짜를 선택하고 내용을 직접 입력해 맘푸드일지에 추가합니다.</div>
   <div id="manualCalHeader">
-    <button type="button" id="btnManualCalPrev" class="btnGhost">◀</button>
+    <button type="button" id="btnManualCalPrev" class="btnGhost" title="이전 달">‹</button>
     <div id="manualCalTitle"></div>
-    <button type="button" id="btnManualCalNext" class="btnGhost">▶</button>
+    <button type="button" id="btnManualCalNext" class="btnGhost" title="다음 달">›</button>
   </div>
   <div id="manualCalGrid"></div>
-  <div class="smallNote" id="manualSelectedDateLabel" style="margin-top:8px;font-weight:bold;color:#2b3a55;"></div>
+  <div class="smallNote" id="manualSelectedDateLabel"></div>
   <div class="row2" style="margin-top:10px;">
     <div><label>거래처</label><input type="text" id="manualVendor" placeholder="예: OO상사"></div>
     <div><label>품목명</label><input type="text" id="manualItem" placeholder="예: 칼국수 10인분"></div>
@@ -992,11 +1122,11 @@
   </div>
   <div class="sectionTitle">작성된 내용</div>
   <div id="journalItemList"></div>
-  <div id="journalItemEmpty" class="smallNote" style="margin-top:6px;">아직 작성된 내용이 없습니다.</div>
+  <div id="journalItemEmpty" class="smallNote">아직 작성된 내용이 없습니다.</div>
   <div class="sectionTitle" id="journalInputLabel">새 내용 추가</div>
-  <textarea id="journalMemo" rows="4" style="margin-top:6px;" placeholder="퇴근시간, 재고, 입고, 출고 등 그날의 내용을 자유롭게 적어주세요"></textarea>
+  <textarea id="journalMemo" rows="4" placeholder="퇴근시간, 재고, 입고, 출고 등 그날의 내용을 자유롭게 적어주세요"></textarea>
   <div class="modalBtns" style="justify-content:space-between;">
-    <button id="journalDelete" style="background:#8a2c2c;color:#fff;">이 날짜 일지 전체 삭제</button>
+    <button id="journalDelete" class="btnDanger">이 날짜 일지 전체 삭제</button>
     <div style="display:flex;gap:8px;margin-left:auto;">
       <button class="btnGhost hidden" id="journalEditCancel">수정 취소</button>
       <button class="btnGhost" id="journalCancel">닫기</button>
@@ -1240,14 +1370,14 @@ function fixCurrentProfile() {
 function setSyncStatus(kind) {
   const el = document.getElementById('syncStatus');
   if (!el) return;
-  const map = {
-    ok: ['● 서버에 저장됨', '#7fd69a'],
-    saving: ['● 저장 중…', '#ffd166'],
-    error: ['● 서버 연결 끊김 - 다시 시도 중', '#ff8a80'],
-    local: ['이 컴퓨터에만 저장됨(로컬 파일)', '#cfd6e4'],
+  const labels = {
+    ok: '서버에 저장됨',
+    saving: '저장 중…',
+    error: '서버 연결 끊김 - 다시 시도 중',
+    local: '이 컴퓨터에만 저장됨(로컬 파일)',
   };
-  el.textContent = map[kind][0];
-  el.style.color = map[kind][1];
+  el.textContent = labels[kind];
+  el.dataset.state = kind; // 앞의 점 색은 CSS가 이 값으로 정한다
 }
 let syncToastTimer = null;
 function showSyncToast(msg) {
@@ -2141,7 +2271,7 @@ function clearSelectionVisual() {
 function applySelectionVisual() {
   clearSelectionVisual();
   if (!selection) return;
-  const color = '#5b7fd6';
+  const color = '#2f5fde'; // 강조색(--accent)
   for (let r = selection.r1; r <= selection.r2; r++) {
     for (let c = selection.c1; c <= selection.c2; c++) {
       const td = getTd(r, c);
@@ -2754,7 +2884,7 @@ function renderInvoiceUploadLogArea() {
     return;
   }
   area.classList.remove('hidden');
-  area.innerHTML = `<div class="sectionTitle uploadLogHeader"><span>업로드 기록</span><span class="uploadLogToggleBtn">${invoiceUploadLogCollapsed ? '▲ 펼치기' : '▼ 접기'}</span></div>`
+  area.innerHTML = `<div class="sectionTitle uploadLogHeader"><span>업로드 기록</span><span class="uploadLogToggleBtn">${invoiceUploadLogCollapsed ? '펼치기' : '접기'}</span></div>`
     + `<div class="uploadLogListInner${invoiceUploadLogCollapsed ? ' hidden' : ''}"></div>`;
   area.querySelector('.uploadLogHeader').addEventListener('click', () => {
     invoiceUploadLogCollapsed = !invoiceUploadLogCollapsed;
@@ -3921,7 +4051,7 @@ function clearProdSelectionVisual() {
 function applyProdSelectionVisual() {
   clearProdSelectionVisual();
   if (!prodSelection) return;
-  const color = '#5b7fd6';
+  const color = '#2f5fde'; // 강조색(--accent)
   for (let r = prodSelection.r1; r <= prodSelection.r2; r++) {
     for (let c = prodSelection.c1; c <= prodSelection.c2; c++) {
       const td = getProdTd(r, c);
@@ -4385,7 +4515,7 @@ function renderProdUploadLog() {
     return;
   }
   area.classList.remove('hidden');
-  area.innerHTML = `<div class="sectionTitle uploadLogHeader"><span>업로드 기록</span><span class="uploadLogToggleBtn">${prodUploadLogCollapsed ? '▲ 펼치기' : '▼ 접기'}</span></div>`
+  area.innerHTML = `<div class="sectionTitle uploadLogHeader"><span>업로드 기록</span><span class="uploadLogToggleBtn">${prodUploadLogCollapsed ? '펼치기' : '접기'}</span></div>`
     + `<div class="uploadLogListInner${prodUploadLogCollapsed ? ' hidden' : ''}"></div>`;
   area.querySelector('.uploadLogHeader').addEventListener('click', () => {
     prodUploadLogCollapsed = !prodUploadLogCollapsed;
@@ -4402,7 +4532,7 @@ function renderProdUploadLog() {
     if (entry.remappable) {
       const btn = document.createElement('button');
       btn.textContent = '열 재매핑';
-      btn.style.cssText = 'margin-left:8px;padding:2px 8px;font-size:12px;border-radius:4px;border:1px solid #4b5d78;background:#4b5d78;color:#fff;cursor:pointer;';
+      btn.className = 'miniBtn';
       btn.addEventListener('click', () => openProdRemap(entry.id));
       div.appendChild(btn);
     }
@@ -4448,8 +4578,7 @@ function renderProdStatusTable() {
     }
     const tdManage = document.createElement('td');
     const fixBtn = document.createElement('button');
-    fixBtn.className = 'overrideDelBtn';
-    fixBtn.style.background = '#4b5d78';
+    fixBtn.className = 'miniBtn';
     fixBtn.textContent = '상품수정';
     fixBtn.addEventListener('click', () => openProdFixModal(name));
     tdManage.appendChild(fixBtn);
@@ -5380,7 +5509,7 @@ function renderInboundCalendar() {
    같은 날에 여러 행사가 겹치면 줄을 달리해서 위아래로 쌓고, 업체마다 다른 색을 쓴다. */
 const EVENT_LANE_HEIGHT = 18; // 막대 한 줄이 차지하는 높이(막대 16 + 간격 2)
 const EVENT_BAR_GAP = 2;      // 날짜 숫자와 첫 막대 사이 간격
-const EVENT_BAR_TOP = 4 + 20 + EVENT_BAR_GAP; // 칸 위쪽 여백(4) + 날짜 숫자 줄(20) + 간격
+const EVENT_BAR_TOP = 6 + 20 + EVENT_BAR_GAP; // 칸 위쪽 여백(6, .calDayCell의 padding-top) + 날짜 숫자 줄(20) + 간격
 const EVENT_MAX_LANES = 4;    // 한 칸에 쌓아 보여줄 최대 줄 수(넘치면 "행사 +N건"으로 표시)
 // 빨강·분홍·주황 계열은 휴무일 표시(붉은색)와 헷갈리므로 쓰지 않는다
 const EVENT_COLORS = [
