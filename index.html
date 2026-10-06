@@ -5369,7 +5369,7 @@ function renderInboundCalendar() {
     const color = eventColors.get(eventColorKey(seg.ev));
     bar.style.background = color.bg;
     bar.style.color = color.fg;
-    bar.textContent = `행사 ${eventLabel(seg.ev)}`;
+    bar.textContent = eventLabel(seg.ev); // "업체명 · 상품명"
     body.appendChild(bar);
   });
   fitCalendarCells();
