@@ -740,7 +740,7 @@
 
         <div class="sectionTitle">생산 횟수 요약</div>
         <div id="prodRunSummary"></div>
-        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 맘푸드일지의 전날 날짜 칸에 "발주량"으로 기록되고, 여기 발주내역과 업로드 기록은 자동으로 비워집니다.</div>
+        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 맘푸드일지의 전날 날짜 칸에 "발주량"으로 기록되고, 여기 발주내역과 업로드 기록, [제거됨] 탭의 내역은 자동으로 비워집니다.</div>
       </div>
     </div>
   </div>
@@ -767,7 +767,7 @@
   <div id="prodView3" class="prodSheet">
     <div class="tableScroll padded">
       <div class="sectionTitle" style="margin-top:0;">제거된 발주 내역</div>
-      <div class="smallNote">[발주제거]로 삭제한 내역입니다. 복원하면 발주내역에 다시 추가됩니다.</div>
+      <div class="smallNote">[발주제거]로 삭제한 내역입니다. 복원하면 발주내역에 다시 추가됩니다. 매일 오전 6시(한국시간)가 지나면 그 전에 제거한 내역은 자동으로 지워집니다.</div>
       <div class="btnRow">
         <button type="button" id="btnProdRemovedRestoreAll" class="btnRestore">전체 복원</button>
         <button type="button" id="btnProdRemovedClearAll" class="btnPermDelete">전체 영구삭제</button>
@@ -4404,6 +4404,7 @@ function renderProdSummary() {
    발주내역을 바꾸려면 어차피 화면을 열어야 하고, 그때 먼저 '바뀌기 전 요약'으로 기록부터 남기기 때문에
    6시가 한참 지나서 처음 접속하더라도 6시 시점의 내용이 정확히 기록된다.
    기록과 동시에 그날의 발주내역과 업로드 기록은 비운다(다음 날은 빈 상태에서 시작).
+   [제거됨] 탭의 내역도 마감이 지나면 지운다(이쪽은 제거 시각을 보고 판단하므로 기록할 것이 없는 날에도 지워진다).
    달력에는 "발주량"이라는 이름으로 표시한다. */
 const PROD_DAY_CUTOFF_HOUR_KST = 6;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -4439,7 +4440,14 @@ function buildProdDailySummary() {
 function prodDailyNeedsWork(now) {
   const d = appState.prodDaily;
   if (d.summary && !d.recorded && now >= nextProdCutoffAfter(d.changedAt)) return true;
+  if (appState.prodRemovedRows.some(r => isStaleRemovedRow(r, now))) return true;
   return buildProdDailySummary().sig !== d.sig;
+}
+// [제거됨] 탭의 내역이 "지난 날의 것"인지: 가장 최근 마감(06:00) 전에 제거됐으면 지난 날의 것이다.
+// (제거 시각이 기록돼 있지 않은 예전 내역도 지난 것으로 본다)
+function isStaleRemovedRow(row, now) {
+  const lastCutoff = nextProdCutoffAfter(now) - DAY_MS;
+  return !(row.removedAt >= lastCutoff);
 }
 // 직전 확인 때 발주내역에 있던 행들. 마감 뒤 기록하면서 발주내역을 비울 때, 그 사이 새로 추가된 행
 // (= 다음 날 분)을 가려내 남겨 두는 데 쓴다. null이면 지금 있는 행 전부를 전날 분으로 본다.
@@ -4478,6 +4486,13 @@ function prodDailyCheck(now) {
     d.recorded = false;
     changed = true;
   }
+  // 3) [제거됨] 탭도 하루 단위로 비운다: 마감(06:00)이 지나면 그 전에 제거해 둔 내역은 지운다.
+  //    발주내역이 비어 있어 일지에 기록할 것이 없는 날에도 똑같이 지운다.
+  const keptRemovedRows = appState.prodRemovedRows.filter(r => !isStaleRemovedRow(r, now));
+  if (keptRemovedRows.length !== appState.prodRemovedRows.length) {
+    appState.prodRemovedRows = keptRemovedRows;
+    changed = true;
+  }
   rememberProdRows();
   return changed;
 }
@@ -4496,12 +4511,12 @@ function prodDailyTick() {
   if (now < prodDailyRunAt) return;
   prodDailyRunAt = 0;
   const recordCount = appState.prodDailyRecords.length;
+  const removedCount = appState.prodRemovedRows.length;
   saveState(); // saveState 안에서 prodDailyCheck가 실행된다
-  if (appState.prodDailyRecords.length !== recordCount) {
-    // 기록이 생기면서 발주내역도 비워졌으므로 보고 있는 화면을 다시 그린다
-    if (document.getElementById('appInbound').classList.contains('active')) renderInbound();
-    if (document.getElementById('appProduction').classList.contains('active')) renderProduction();
-  }
+  const recorded = appState.prodDailyRecords.length !== recordCount;
+  // 기록이 생기면서 발주내역이 비워졌거나 [제거됨] 내역이 지워졌으면, 보고 있는 화면을 다시 그린다
+  if (recorded && document.getElementById('appInbound').classList.contains('active')) renderInbound();
+  if ((recorded || appState.prodRemovedRows.length !== removedCount) && document.getElementById('appProduction').classList.contains('active')) renderProduction();
 }
 setInterval(prodDailyTick, 10000);
 
