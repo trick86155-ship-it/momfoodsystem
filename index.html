@@ -358,7 +358,7 @@
     font-size: 12px; font-weight: 500; color: var(--text-2);
   }
   .prodRunLine > span:last-child { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
-  #prodRunSummary .smallNote { flex: 1 1 100%; }
+  .prodUnparsedCount { flex: 1 1 100%; font-size: 12px; color: var(--danger); }
   #prodUploadLog, #invoiceUploadLogArea { flex: 0 0 auto; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
   #prodUploadLog .sectionTitle, #invoiceUploadLogArea .sectionTitle { margin-top: 0; padding-top: 0; border-top: none; font-size: 12px; color: var(--text-2); }
   .uploadLogHeader { display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none; }
@@ -371,6 +371,8 @@
   .uploadLogLine .miniBtn { margin-left: 8px; }
   #prodRawTbody tr.failRow td { background: var(--danger-soft); color: #9c2318; }
   #prodRawTbody tr.updatedRow td, #prodLineTbody tr.updatedRow td, #prodStatusTbody tr.updatedRow td { background: #f0f8f3; color: #1b6b42; }
+  /* 재고입력 분: 생산량에서 빼는 값이라 붉은 글씨로 구분한다 */
+  tr.stockRow td, .inboundDetailRow .idrStock { color: var(--danger); }
 
   /* ===================== 맘푸드일지 ===================== */
   #inboundBody { display: flex; flex: 1; min-height: 0; }
@@ -695,6 +697,7 @@
     <button id="btnProdUpload">발주서업로드</button>
     <button id="btnProdUpdate">발주서업데이트</button>
     <button id="btnProdManualInput">생산량입력</button>
+    <button id="btnProdStock">재고입력</button>
     <button id="btnProdRemove" class="tbDanger">발주제거</button>
     <button id="btnProdReset">초기화</button>
   </div>
@@ -740,7 +743,6 @@
 
         <div class="sectionTitle">생산 횟수 요약</div>
         <div id="prodRunSummary"></div>
-        <div class="smallNote" style="margin-top:10px;">※ 매일 오전 6시(한국시간)가 지나면, 그 시점의 정리 내역(전체 파일 기준)이 요약되어 맘푸드일지의 전날 날짜 칸에 "발주량"으로 기록되고, 여기 발주내역과 업로드 기록, [제거됨] 탭의 내역은 자동으로 비워집니다.</div>
       </div>
     </div>
   </div>
@@ -748,7 +750,6 @@
   <div id="prodView2" class="prodSheet">
     <div class="tableScroll padded">
       <div class="sectionTitle" style="margin-top:0;">현재 업로드 내역 인식 현황</div>
-      <div class="smallNote">지금까지 올라온 발주서에 등장한 상품명별 인식 상태입니다.</div>
       <table id="prodStatusTable">
         <thead><tr><th>상품명(원본)</th><th>인식 결과</th><th>상태</th><th>관리</th></tr></thead>
         <tbody id="prodStatusTbody"></tbody>
@@ -767,7 +768,6 @@
   <div id="prodView3" class="prodSheet">
     <div class="tableScroll padded">
       <div class="sectionTitle" style="margin-top:0;">제거된 발주 내역</div>
-      <div class="smallNote">[발주제거]로 삭제한 내역입니다. 복원하면 발주내역에 다시 추가됩니다. 매일 오전 6시(한국시간)가 지나면 그 전에 제거한 내역은 자동으로 지워집니다.</div>
       <div class="btnRow">
         <button type="button" id="btnProdRemovedRestoreAll" class="btnRestore">전체 복원</button>
         <button type="button" id="btnProdRemovedClearAll" class="btnPermDelete">전체 영구삭제</button>
@@ -815,7 +815,7 @@
     <div id="inboundDetailArea">
       <div class="sectionTitle" style="margin-top:0;" id="inboundDetailTitle">날짜를 선택하세요</div>
       <div id="inboundDetailList"></div>
-      <div id="inboundDetailEmpty" class="smallNote">달력에서 날짜를 클릭하면 그날 내역을 볼 수 있고, 더블클릭하면 일지를 작성할 수 있습니다.</div>
+      <div id="inboundDetailEmpty" class="smallNote hidden"></div>
     </div>
   </div>
 </div>
@@ -824,7 +824,6 @@
   <div id="vatBody">
     <div id="vatCard">
       <div class="sectionTitle" style="margin-top:0;border-top:none;padding-top:0;">부과세계산</div>
-      <div class="smallNote">금액을 입력하면 엑셀 수식 <b>=A1-INT(A1/11)</b> 과 같은 방식으로 계산합니다. (금액 ÷ 11 의 소수점 이하를 버린 값을 금액에서 뺍니다)</div>
       <label for="vatInput">금액 (A1)</label>
       <input type="text" id="vatInput" inputmode="numeric" autocomplete="off" placeholder="예: 110,000">
       <div class="vatLine vatMain">
@@ -902,7 +901,6 @@
   <input type="text" id="pfName" placeholder="예: OO상사">
 
   <div class="sectionTitle">송장 파일 열 매핑 (거래처 송장 양식 기준)</div>
-  <div class="smallNote">칸을 비워두면 업로드하는 송장 파일의 헤더에서 자동으로 열을 찾습니다. 자동인식 실패시 직접 지정하세요.</div>
   <div class="row2">
     <div><label>송장번호 열 (기본값-자동인식)</label><select id="pfTrackingCol"></select></div>
     <div><label>주문번호 열 (기본값-자동인식)</label><select id="pfOrderNo"></select></div>
@@ -924,7 +922,6 @@
   </div>
 
   <div class="sectionTitle">상품명 자동 합치기</div>
-  <div class="smallNote">체크하면 송장 업로드 시 "상품명 + 내품갯수"를 합쳐 상품명을 만듭니다. 예: 상품명 "칼국수" + 내품갯수 "10" → 상품명 "칼국수 10인" (내품갯수는 1로 재설정됩니다). 이미 상품명에 인분수가 포함된 거래처는 체크하지 마세요.</div>
   <div class="row2">
     <div><label><input type="checkbox" id="pfCombineNameQty">상품명에 내품갯수 자동으로 합치기</label></div>
   </div>
@@ -981,7 +978,6 @@
 <!-- 송장 업로드: 상품명 인식 실패 내역 -->
 <div id="invoiceFailListModal" class="modal hidden" style="width:560px;">
   <h2>송장 업로드 실패 내역</h2>
-  <div class="smallNote">송장번호를 인식하지 못해 표에 추가되지 못한 행과, 표에는 추가됐지만 상품명을 인식하지 못한 행을 함께 보여줍니다. 클릭 가능한 항목은 클릭하면 정산내역 표에서 해당 행으로 이동합니다.</div>
   <div id="invoiceFailList" style="margin-top:10px;max-height:400px;overflow-y:auto;"></div>
   <div id="invoiceFailListEmpty" class="hidden smallNote">현재 상품명 인식 실패 항목이 없습니다.</div>
   <div class="modalBtns">
@@ -992,7 +988,6 @@
 <!-- 발주서업데이트(인식 실패 항목 수정) 모달 -->
 <div id="prodUpdateModal" class="modal hidden" style="width:600px;">
   <h2>발주서업데이트 (인식 실패 항목 수정)</h2>
-  <div class="smallNote">인식에 실패한 상품명별로 기본 상품명과 1세트당 인분 수를 입력하면, 지금 내역은 물론 앞으로 같은 이름으로 올라오는 발주서도 자동으로 인식됩니다.</div>
   <div id="prodUpdateList" style="margin-top:10px;"></div>
   <div id="prodUpdateEmpty" class="hidden smallNote">인식 실패 항목이 없습니다.</div>
   <div class="modalBtns">
@@ -1004,7 +999,6 @@
 <!-- 생산량계산기: 발주서 없이 오프라인으로 나가는 생산량 직접 입력 모달 -->
 <div id="prodManualInputModal" class="modal hidden">
   <h2>생산량 입력 (오프라인 생산)</h2>
-  <div class="smallNote">발주서를 거치지 않고 별도로 생산해서 나가는 물량을 발주내역에 직접 추가합니다. (예: 상품명 "칼국수", 인분 수 "500" 입력 시 "칼국수 500인분"이 추가됩니다)</div>
   <div class="row2">
     <div><label>상품명</label><input type="text" id="prodManualBase" placeholder="예: 칼국수"></div>
     <div><label>인분 수</label><input type="number" id="prodManualPerSet" placeholder="예: 500" min="1"></div>
@@ -1015,10 +1009,22 @@
   </div>
 </div>
 
+<!-- 생산량계산기: 판매하고 남은 재고 입력 모달 (입력한 만큼 생산량에서 뺀다) -->
+<div id="prodStockModal" class="modal hidden">
+  <h2>재고 입력</h2>
+  <div class="row2">
+    <div><label>상품</label><select id="prodStockCategory"></select></div>
+    <div><label>남은 재고 (인분)</label><input type="number" id="prodStockServings" placeholder="예: 100" min="1"></div>
+  </div>
+  <div class="modalBtns">
+    <button class="btnGhost" id="prodStockCancel">취소</button>
+    <button class="btnPrimary" id="prodStockSave">추가</button>
+  </div>
+</div>
+
 <!-- 생산량계산기: 발주제거 전, 정리 내역/상품별 총 인분과 동일한 표 형식으로 제거될 내역을 확인하는 모달 -->
 <div id="prodRemoveConfirmModal" class="modal hidden">
   <h2>발주내역에서 제거</h2>
-  <div class="smallNote">선택한 범위에서 다음 내역이 제거됩니다. ([제거됨] 탭에서 나중에 복원할 수 있습니다)</div>
   <div class="sectionTitle" style="margin-top:12px;">정리 내역</div>
   <table id="prodRemoveConfirmLineTable">
     <thead><tr><th>상품</th><th>인분</th><th>세트수</th></tr></thead>
@@ -1040,7 +1046,6 @@
 <div id="prodFixModal" class="modal hidden">
   <h2>상품 수정</h2>
   <div class="smallNote" id="prodFixOrigLabel"></div>
-  <div class="smallNote">성공으로 인식됐지만 다른 상품/인분수로 잘못 인식된 경우 여기서 바로잡을 수 있습니다.</div>
   <div class="row2">
     <div><label>기본 상품명</label><input type="text" id="prodFixBase" placeholder="예: 칼국수"></div>
     <div><label>1세트당 인분</label><input type="number" id="prodFixPerSet" placeholder="예: 10" min="1"></div>
@@ -1055,7 +1060,6 @@
 <div id="prodRemapModal" class="modal hidden">
   <h2>발주서 열 재매핑</h2>
   <div class="smallNote" id="prodRemapFileLabel"></div>
-  <div class="smallNote">자동 인식에 실패했습니다. 상품명과 수량이 들어있는 열을 직접 지정한 뒤 재업로드하세요.</div>
   <div class="row2">
     <div><label>상품명 열</label><select id="prodRemapProductName"></select></div>
     <div><label>수량 열</label><select id="prodRemapQty"></select></div>
@@ -1072,7 +1076,6 @@
 <!-- 맘푸드일지: 세금계산서 파일 없이 날짜를 직접 선택해 내역을 추가하는 모달 -->
 <div id="inboundManualModal" class="modal hidden" style="width:360px;">
   <h2>세금계산서 직접입력</h2>
-  <div class="smallNote">세금계산서 파일이 없을 때 달력에서 날짜를 선택하고 내용을 직접 입력해 맘푸드일지에 추가합니다.</div>
   <div id="manualCalHeader">
     <button type="button" id="btnManualCalPrev" class="btnGhost" title="이전 달">‹</button>
     <div id="manualCalTitle"></div>
@@ -3932,9 +3935,14 @@ function prodCategoryLabel(key) {
   return key === '공주칼국수' ? '공주 칼국수' : key;
 }
 
+const PROD_OTHER_CATEGORY = '기타'; // 5개 상품군 어디에도 속하지 않는 상품
+
+// [재고입력]으로 넣은 행(stockEntry)은 발주와 따로 모아서, 같은 상품군의 발주 인분에서 뺀다.
 function computeProductionSummary(rows) {
   const lineMap = {};   // "base__perSet" -> { base, perSet, sets, viaOverride }
   const baseTotals = {}; // base -> 총 인분
+  const stockLineMap = {}; // 재고 분의 lineMap
+  const stockTotals = {};  // 재고 분의 baseTotals
   let unparsedCount = 0;
 
   rows.forEach(r => {
@@ -3942,19 +3950,30 @@ function computeProductionSummary(rows) {
     const parsed = resolveProductServing(r.productName);
     const qty = Number(r.qty) || 0;
     if (!parsed) { unparsedCount++; return; }
+    const lines = r.stockEntry ? stockLineMap : lineMap;
+    const totals = r.stockEntry ? stockTotals : baseTotals;
     const key = `${parsed.base}__${parsed.perSet}`;
-    if (!lineMap[key]) lineMap[key] = { base: parsed.base, perSet: parsed.perSet, sets: 0, viaOverride: false };
-    lineMap[key].sets += qty;
-    if (isOverride) lineMap[key].viaOverride = true;
-    baseTotals[parsed.base] = (baseTotals[parsed.base] || 0) + parsed.perSet * qty;
+    if (!lines[key]) lines[key] = { base: parsed.base, perSet: parsed.perSet, sets: 0, viaOverride: false };
+    lines[key].sets += qty;
+    if (isOverride) lines[key].viaOverride = true;
+    totals[parsed.base] = (totals[parsed.base] || 0) + parsed.perSet * qty;
   });
 
-  const categoryServings = {}; // 공주칼국수/우동/콩국수/칼국수/소바 -> 총 인분
-  let otherServings = 0; // 5개 카테고리 어디에도 속하지 않는 상품의 총 인분
-  Object.entries(baseTotals).forEach(([base, servings]) => {
-    const cat = categorizeProduct(base);
-    if (!cat) { otherServings += servings; return; }
-    categoryServings[cat] = (categoryServings[cat] || 0) + servings;
+  // 상품군(공주칼국수/우동/콩국수/칼국수/소바/기타)별로 묶는다
+  const byCategory = (totals) => {
+    const out = {};
+    Object.entries(totals).forEach(([base, servings]) => {
+      const cat = categorizeProduct(base) || PROD_OTHER_CATEGORY;
+      out[cat] = (out[cat] || 0) + servings;
+    });
+    return out;
+  };
+  const categoryOrdered = byCategory(baseTotals); // 발주 인분
+  const categoryStock = byCategory(stockTotals);  // 재고 인분
+  // 생산할 인분 = 발주 - 재고. 재고가 더 많아도 0까지만 내린다(남는 재고로 다른 상품의 생산을 줄이지 않도록).
+  const categoryServings = {};
+  Object.keys(categoryOrdered).forEach(cat => {
+    categoryServings[cat] = Math.max(0, categoryOrdered[cat] - (categoryStock[cat] || 0));
   });
 
   const runsOf = {};
@@ -3965,7 +3984,7 @@ function computeProductionSummary(rows) {
   const sobaRuns = runsOf['소바'] || 0;
   const kalguksuRuns = (runsOf['칼국수'] || 0) + (runsOf['우동'] || 0) + (runsOf['공주칼국수'] || 0) + (runsOf['콩국수'] || 0);
 
-  return { lineMap, baseTotals, categoryServings, otherServings, sobaRuns, kalguksuRuns, unparsedCount };
+  return { lineMap, baseTotals, stockLineMap, stockTotals, categoryOrdered, categoryStock, categoryServings, sobaRuns, kalguksuRuns, unparsedCount };
 }
 
 // 파일 선택 필터(전체 / 특정 업로드 기록 / 직접입력)에 맞춰 발주내역을 걸러낸다
@@ -4165,7 +4184,7 @@ let prodColFilterActiveField = null; // 'productName' | 'qty'
 let prodColFilterPendingSet = null;
 
 function getProdDisplayValueForFilter(row, key) {
-  if (key === 'qty') return (row.qty === 0 || row.qty) ? fmtNum(row.qty) : '';
+  if (key === 'qty') return (row.qty === 0 || row.qty) ? fmtNum(prodRowQty(row)) : '';
   return row.productName || '';
 }
 function getProdDistinctColumnValues(rows, key) {
@@ -4321,13 +4340,14 @@ function renderProdRawTable() {
     const tdIdx = document.createElement('td');
     tdIdx.className = 'rowIdx';
     tdIdx.textContent = i + 1;
+    if (r.stockEntry) tr.classList.add('stockRow');
     const tdName = document.createElement('td');
-    tdName.textContent = r.manualEntry ? `${r.productName} (오프라인 생산)` : r.productName;
+    tdName.textContent = prodRowLabel(r);
     tdName.className = 'prodSelectableCell';
     tdName.dataset.rowIndex = i;
     tdName.dataset.colIndex = 0;
     const tdQty = document.createElement('td');
-    tdQty.textContent = fmtNum(r.qty);
+    tdQty.textContent = fmtNum(prodRowQty(r));
     tdQty.className = 'prodSelectableCell';
     tdQty.dataset.rowIndex = i;
     tdQty.dataset.colIndex = 1;
@@ -4341,8 +4361,28 @@ function renderProdRawTable() {
 // 상품별 총 인분 표에 표시할 카테고리 순서
 const PROD_DISPLAY_ORDER = ['칼국수', '콩국수', '소바', '우동', '공주칼국수'];
 
+// 발주내역/제거됨 목록에 보여줄 상품명과 수량 (재고는 빼는 값이라 수량을 음수로 보여준다)
+function prodRowLabel(r) {
+  if (r.stockEntry) return `${r.productName} (재고)`;
+  return r.manualEntry ? `${r.productName} (오프라인 생산)` : r.productName;
+}
+function prodRowQty(r) {
+  return r.stockEntry ? -r.qty : r.qty;
+}
+// 정리 내역/상품별 총 인분 표에 재고 줄(붉은 글씨)을 한 줄 추가한다
+function appendProdStockRow(tbody, cells) {
+  const tr = document.createElement('tr');
+  tr.className = 'stockRow';
+  cells.forEach(text => {
+    const td = document.createElement('td');
+    td.textContent = text;
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+}
+
 function renderProdSummary() {
-  const { lineMap, categoryServings, otherServings, sobaRuns, kalguksuRuns, unparsedCount } = computeProductionSummary(getFilteredProdRows());
+  const { lineMap, stockLineMap, categoryOrdered, categoryStock, categoryServings, sobaRuns, kalguksuRuns, unparsedCount } = computeProductionSummary(getFilteredProdRows());
 
   const lineTbody = document.getElementById('prodLineTbody');
   lineTbody.innerHTML = '';
@@ -4355,26 +4395,26 @@ function renderProdSummary() {
     tr.appendChild(tdBase); tr.appendChild(tdPerSet); tr.appendChild(tdSets);
     lineTbody.appendChild(tr);
   });
+  Object.values(stockLineMap).forEach(({ base, perSet, sets }) => {
+    appendProdStockRow(lineTbody, [`${base} 재고`, perSet + '인', fmtNum(-sets) + '개']);
+  });
 
-  // 상품별 총 인분: 칼국수/콩국수/소바/우동/공주칼국수 카테고리 기준으로 다시 집계해서 표시
+  // 상품별 총 인분: 칼국수/콩국수/소바/우동/공주칼국수(+기타) 카테고리 기준으로 다시 집계해서 표시.
+  // 재고가 있으면 재고만큼 뺀 인분을 보여주고, 뺀 재고는 바로 아래에 붉은 줄로 따로 보여준다.
   const baseTbody = document.getElementById('prodBaseTbody');
   baseTbody.innerHTML = '';
-  PROD_DISPLAY_ORDER.forEach(cat => {
-    const servings = categoryServings[cat] || 0;
-    if (servings === 0) return; // 해당 카테고리 주문이 아예 없으면 표시하지 않음
-    const tr = document.createElement('tr');
-    const tdBase = document.createElement('td'); tdBase.textContent = prodCategoryLabel(cat);
-    const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(servings) + '인분';
-    tr.appendChild(tdBase); tr.appendChild(tdServ);
-    baseTbody.appendChild(tr);
+  [...PROD_DISPLAY_ORDER, PROD_OTHER_CATEGORY].forEach(cat => {
+    if ((categoryOrdered[cat] || 0) > 0) { // 해당 카테고리 주문이 아예 없으면 표시하지 않음
+      const tr = document.createElement('tr');
+      const tdBase = document.createElement('td'); tdBase.textContent = prodCategoryLabel(cat);
+      const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(categoryServings[cat]) + '인분';
+      tr.appendChild(tdBase); tr.appendChild(tdServ);
+      baseTbody.appendChild(tr);
+    }
+    if ((categoryStock[cat] || 0) > 0) {
+      appendProdStockRow(baseTbody, [`${prodCategoryLabel(cat)} 재고`, fmtNum(-categoryStock[cat]) + '인분']);
+    }
   });
-  if (otherServings > 0) {
-    const tr = document.createElement('tr');
-    const tdBase = document.createElement('td'); tdBase.textContent = '기타';
-    const tdServ = document.createElement('td'); tdServ.textContent = fmtNum(otherServings) + '인분';
-    tr.appendChild(tdBase); tr.appendChild(tdServ);
-    baseTbody.appendChild(tr);
-  }
 
   const runSummary = document.getElementById('prodRunSummary');
   runSummary.innerHTML = '';
@@ -4387,11 +4427,10 @@ function renderProdSummary() {
   addRunLine('소바', sobaRuns);
   addRunLine('칼국수', kalguksuRuns);
   if (unparsedCount > 0) {
-    const note = document.createElement('div');
-    note.className = 'smallNote';
-    note.style.marginTop = '4px';
-    note.textContent = `※ 상품명에서 "OO인" 형식을 찾지 못해 집계에서 제외된 항목 ${unparsedCount}건`;
-    runSummary.appendChild(note);
+    const count = document.createElement('div');
+    count.className = 'prodUnparsedCount';
+    count.textContent = `인식 실패 ${fmtNum(unparsedCount)}건 (집계 제외)`;
+    runSummary.appendChild(count);
   }
 }
 
@@ -4421,19 +4460,20 @@ function kstDateStr(ts) {
 // 현재 발주내역 전체(파일 필터와 무관)의 정리내역을 맘푸드일지용으로 간략하게 요약
 function buildProdDailySummary() {
   const s = computeProductionSummary(appState.prodRows);
-  const totals = []; // 상품별 총 인분
-  PROD_DISPLAY_ORDER.forEach(cat => {
-    const servings = s.categoryServings[cat] || 0;
-    if (servings > 0) totals.push({ name: cat, servings });
+  const totals = []; // 상품별 총 인분 (재고를 뺀 값)
+  const stock = [];  // 재고입력 분
+  [...PROD_DISPLAY_ORDER, PROD_OTHER_CATEGORY].forEach(cat => {
+    if ((s.categoryOrdered[cat] || 0) > 0) totals.push({ name: cat, servings: s.categoryServings[cat] });
+    if ((s.categoryStock[cat] || 0) > 0) stock.push({ name: cat, servings: s.categoryStock[cat] });
   });
-  if (s.otherServings > 0) totals.push({ name: '기타', servings: s.otherServings });
-  if (totals.length === 0) return { sig: '', summary: null };
+  if (totals.length === 0) return { sig: '', summary: null }; // 발주 없이 재고만 있으면 기록할 것이 없다
   const lines = Object.values(s.lineMap) // 정리 내역(상품 / 인분 / 세트수)
     .filter(l => l.sets > 0)
     .map(({ base, perSet, sets }) => ({ base, perSet, sets }))
     .sort((a, b) => a.base.localeCompare(b.base, 'ko') || a.perSet - b.perSet);
   const round2 = (n) => Math.round(n * 100) / 100;
   const summary = { totals, lines, sobaRuns: round2(s.sobaRuns), kalguksuRuns: round2(s.kalguksuRuns) };
+  if (stock.length > 0) summary.stock = stock; // 재고가 없는 날은 예전과 같은 형식 그대로 둔다
   return { sig: JSON.stringify(summary), summary };
 }
 // 지금 기록하거나 요약을 갱신할 일이 있는지 (데이터는 바꾸지 않음)
@@ -4696,10 +4736,11 @@ function renderProdRemovedTable() {
   empty.classList.add('hidden');
   list.forEach((r, i) => {
     const tr = document.createElement('tr');
+    if (r.stockEntry) tr.classList.add('stockRow');
     const tdName = document.createElement('td');
-    tdName.textContent = r.manualEntry ? `${r.productName} (오프라인 생산)` : r.productName;
+    tdName.textContent = prodRowLabel(r);
     const tdQty = document.createElement('td');
-    tdQty.textContent = fmtNum(r.qty);
+    tdQty.textContent = fmtNum(prodRowQty(r));
     const tdRemovedAt = document.createElement('td');
     tdRemovedAt.textContent = r.removedAt ? fmtDateTime(r.removedAt) : '';
     const tdActions = document.createElement('td');
@@ -4935,7 +4976,7 @@ document.getElementById('btnProdRemove').addEventListener('click', () => {
   prodRemovePendingTargets = targets;
 
   // 발주내역 탭의 "정리 내역"/"상품별 총 인분" 표와 동일한 형식으로 제거될 내역을 보여준다
-  const { lineMap, baseTotals, unparsedCount } = computeProductionSummary(targets);
+  const { lineMap, baseTotals, stockLineMap, stockTotals, unparsedCount } = computeProductionSummary(targets);
 
   const lineTbody = document.getElementById('prodRemoveConfirmLineTbody');
   lineTbody.innerHTML = '';
@@ -4947,6 +4988,9 @@ document.getElementById('btnProdRemove').addEventListener('click', () => {
     tr.appendChild(tdBase); tr.appendChild(tdPerSet); tr.appendChild(tdSets);
     lineTbody.appendChild(tr);
   });
+  Object.values(stockLineMap).forEach(({ base, perSet, sets }) => {
+    appendProdStockRow(lineTbody, [`${base} 재고`, perSet + '인', fmtNum(-sets) + '개']);
+  });
 
   const baseTbody = document.getElementById('prodRemoveConfirmBaseTbody');
   baseTbody.innerHTML = '';
@@ -4957,10 +5001,13 @@ document.getElementById('btnProdRemove').addEventListener('click', () => {
     tr.appendChild(tdBase); tr.appendChild(tdServ);
     baseTbody.appendChild(tr);
   });
+  Object.entries(stockTotals).forEach(([base, servings]) => {
+    appendProdStockRow(baseTbody, [`${base} 재고`, fmtNum(-servings) + '인분']);
+  });
 
   const unparsedEl = document.getElementById('prodRemoveConfirmUnparsed');
   if (unparsedCount > 0) {
-    unparsedEl.textContent = `※ 인분 수를 인식하지 못한 항목 ${unparsedCount}건은 표에 집계되지 않았지만 함께 제거됩니다.`;
+    unparsedEl.textContent = `인식 실패 ${fmtNum(unparsedCount)}건도 함께 제거됩니다.`;
     unparsedEl.classList.remove('hidden');
   } else {
     unparsedEl.classList.add('hidden');
@@ -5025,6 +5072,43 @@ document.getElementById('prodManualSave').addEventListener('click', () => {
   renderProduction();
   hideModal('prodManualInputModal');
   alert(`"${base} ${perSet}인분"이 발주내역에 추가되었습니다.`);
+});
+
+/* ===================== 재고입력 (판매하고 남은 재고만큼 생산량에서 뺀다) =====================
+   재고도 발주내역의 한 줄(stockEntry)로 넣는다. 그래서 [발주제거]로 지우고 [제거됨]에서 되살릴 수 있고,
+   오전 6시 마감 때 그날 발주내역과 함께 비워진다. */
+document.getElementById('btnProdStock').addEventListener('click', () => {
+  const sel = document.getElementById('prodStockCategory');
+  if (sel.options.length === 0) {
+    PROD_DISPLAY_ORDER.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = prodCategoryLabel(cat); opt.textContent = prodCategoryLabel(cat);
+      sel.appendChild(opt);
+    });
+  }
+  document.getElementById('prodStockServings').value = '';
+  showModal('prodStockModal');
+});
+document.getElementById('prodStockCancel').addEventListener('click', () => hideModal('prodStockModal'));
+document.getElementById('prodStockSave').addEventListener('click', () => {
+  const name = document.getElementById('prodStockCategory').value;
+  const servings = Math.floor(Number(document.getElementById('prodStockServings').value));
+  if (!servings || servings <= 0) { alert('재고 인분 수를 올바르게 입력하세요.'); return; }
+  appState.prodRows.push({
+    productName: `${name} ${servings}인분`,
+    qty: 1,
+    failed: false,
+    stockEntry: true, // 발주가 아니라 생산량에서 빼는 재고임을 표시
+  });
+  saveState();
+  // 재고는 전체 보기에서만 차감되므로, 특정 파일만 보고 있었다면 전체 보기로 되돌린다
+  const filterSel = document.getElementById('prodFileFilter');
+  if (filterSel.value) {
+    filterSel.value = '';
+    filterSel.dispatchEvent(new Event('change'));
+  }
+  renderProduction();
+  hideModal('prodStockModal');
 });
 
 /* ===================== 발주서업데이트 (인식 실패 항목 수정) ===================== */
@@ -5674,6 +5758,7 @@ function buildProdRecordDetail(rec) {
   };
   addLine('idrVendor', '발주량');
   (rec.totals || []).forEach(t => addLine('idrItem', `${prodCategoryLabel(t.name)} ${fmtNum(t.servings)}인분`));
+  (rec.stock || []).forEach(t => addLine('idrItem idrStock', `${prodCategoryLabel(t.name)} 재고 ${fmtNum(-t.servings)}인분`));
   addLine('idrMeta', `생산횟수: 소바 ${(Number(rec.sobaRuns) || 0).toFixed(1)}회 · 칼국수 ${(Number(rec.kalguksuRuns) || 0).toFixed(1)}회`);
 
   if ((rec.lines || []).length > 0) {
@@ -5712,8 +5797,7 @@ function renderInboundDetail(dateStr) {
   listEl.innerHTML = '';
   if (!dateStr) {
     titleEl.textContent = '날짜를 선택하세요';
-    emptyEl.textContent = '달력에서 날짜를 클릭하면 그날 내역을 볼 수 있고, 더블클릭하면 일지를 작성할 수 있습니다.';
-    emptyEl.classList.remove('hidden');
+    emptyEl.classList.add('hidden');
     return;
   }
   const byDate = computeInboundByDate();
